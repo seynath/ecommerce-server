@@ -15,6 +15,7 @@ const couponRouter = require("./routes/couponRoute");
 const colorRouter = require("./routes/colorRoute");
 const enqRouter = require("./routes/enqRoute");
 const sizeRoute = require("./routes/sizeRoute")
+const supplierRouter = require("./routes/supplierRoute")
 
 app.use(morgan("dev"));
 app.use(cors());
@@ -29,6 +30,7 @@ app.use("/api/coupon", couponRouter);
 app.use("/api/color", colorRouter);
 app.use("/api/enquiry", enqRouter);
 app.use("/api/size", sizeRoute)
+app.use('/api/supplier',supplierRouter)
 
 app.use(notFound);
 app.use(errorHandler);
