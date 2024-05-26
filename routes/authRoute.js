@@ -28,7 +28,8 @@ const {
   createOrderCashier,
   printBillCashier,
   getOrderProducts,
-  getOrdersById
+  getOrdersById,
+  
   
 } = require("../controllers/userCtrl");
 //othanadi userCtrl.js ekee createuser kiyana func eke witrai aran thiyenne.
@@ -60,6 +61,7 @@ router.get("/get-ordersbyid",authMiddleware,getOrdersById);
 router.get("/get-order-products/:orderId", authMiddleware, getOrderProducts)
 router.get("/refresh", handleRefreshToken); //If the order is causing issues, and you want to prioritize the "/refresh" route, you can keep the second code set but make sure to place the "/refresh" route at the beginning of the router before any routes with parameters like "/:id."
 router.get("/:id",authMiddleware,isAdmin,getaUser);
+
 
 router.delete("/cart/:cartItemId",authMiddleware, removeFromCartItem)
 router.delete("/empty-cart",authMiddleware,emptyCart);

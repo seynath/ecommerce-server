@@ -58,6 +58,11 @@ const createUser = asyncHandler(async (req, res) => {
   }
 });
 
+
+
+
+
+
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -104,7 +109,7 @@ const loginUser = asyncHandler(async (req, res) => {
     connection.release();
 
     // Send the user data and token as a response
-    res.json({
+    res.status(200).json({
       id: user.id,
       firstname: user.firstname,
       lastname: user.lastname,
@@ -2747,7 +2752,7 @@ const getOrdersById = asyncHandler(async (req, res) => {
 
     if(rows.length===0){
       connection.release();
-      return res.status(404).json({ message: "No Orders Found" });
+      return res.status(200).json({ message: "No Orders Found" });
     }
 
     const orders = rows;
@@ -2774,6 +2779,8 @@ const getOrderProducts = asyncHandler(async (req, res) => {
       [orderId]
     );
 
+    console.log(orderItems);
+
     const orderItemsWithTotal = orderItems.map((item) => {
       const total = item.unit_price * item.quantity;
       return { ...item, total };
@@ -2781,6 +2788,7 @@ const getOrderProducts = asyncHandler(async (req, res) => {
     console.log(orderItemsWithTotal);
 
     connection.release();
+    
     res.status(200).json([orderItemsWithTotal]);
   } catch (error) {
     throw new Error(error);
@@ -2915,6 +2923,8 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   }
 });
 
+
+
 module.exports = {
   createUser,
   loginUser,
@@ -2944,5 +2954,4 @@ module.exports = {
   createOrderCashier,
   printBillCashier,
   getOrderProducts,
-  getOrdersById
-};
+  getOrdersById};

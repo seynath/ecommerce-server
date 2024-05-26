@@ -55,19 +55,21 @@ const createProduct = asyncHandler(async (req, res) => {
         console.log(`Color: ${attribute.color}`);
         console.log(`Quantity: ${attribute.quantity}`);
         console.log(`Price: ${attribute.price}`);
+        console.log(`Buying Price: ${attribute.buyingPrice}`)
 
         barcodeValue = `${productId}${index}${attribute.size}`;
 
         console.log(barcodeValue);
         
 
-        const attributesSql = `INSERT INTO size_color_quantity (product_id, size_id, color_code, quantity, unit_price, barcode) VALUES (?, ?, ?, ?, ?, ?)`;
+        const attributesSql = `INSERT INTO size_color_quantity (product_id, size_id, color_code, quantity, unit_price,buying_price, barcode) VALUES (?, ?, ?, ?, ?, ?, ?)`;
         const [resultsAttributes] = await connection.execute(attributesSql, [
           productId,
           attribute.size,
           attribute.color,
           attribute.quantity,
           attribute.price,
+          attribute.buyingPrice,
           barcodeValue
         ]);
 
@@ -102,7 +104,105 @@ const createProduct = asyncHandler(async (req, res) => {
   }
 });
 
+
+// const createProduct = asyncHandler(async (req, res) => {
+//   console.log("before attributes");
+//   try {
+//     const { title, description, brand, category, attributes } = req.body;
+
+//     console.log(title, description, brand, category);
+
+//     console.log(attributes);
+
+
+//     const parsedAttributes = JSON.parse(attributes);
+
+//     // let lowestPrice = Number.MAX_SAFE_INTEGER;
+//     // if (parsedAttributes && parsedAttributes.length > 0) {
+//     //   lowestPrice = Math.min(...parsedAttributes.map(attr => attr.price));
+//     // }
+
+//     let lowestPrice = Infinity;
+//     if (parsedAttributes && parsedAttributes.length > 0) {
+//       lowestPrice = Math.min(
+//         ...parsedAttributes.map((attr) => parseFloat(attr.price))
+//       );
+//     }
+
+//     const slug = title ? slugify(title) : "";
+
+//     // Insert product into the database
+//     const connection = await pool.getConnection();
+
+//     const sql = `INSERT INTO product (p_title, p_slug, p_description, brand, category_id, price) VALUES (?, ?, ?, ?, ?, ?)`;
+//     const [result] = await connection.execute(sql, [
+//       title,
+//       slug,
+//       description,
+//       brand,
+//       category,
+//       lowestPrice,
+//     ]);
+//     const productId = result.insertId;
+//     console.log(productId);
+
+//     if (parsedAttributes && parsedAttributes.length > 0) {
+//       parsedAttributes.forEach(async (attribute, index) => {
+//         console.log(`Attribute ${index + 1}:`);
+//         console.log(`Size: ${attribute.size}`);
+//         console.log(`Color: ${attribute.color}`);
+//         console.log(`Quantity: ${attribute.quantity}`);
+//         console.log(`Price: ${attribute.price}`);
+
+//         barcodeValue = `${productId}${index}${attribute.size}`;
+
+//         console.log(barcodeValue);
+        
+
+//         const attributesSql = `INSERT INTO size_color_quantity (product_id, size_id, color_code, quantity, unit_price, barcode) VALUES (?, ?, ?, ?, ?, ?)`;
+//         const [resultsAttributes] = await connection.execute(attributesSql, [
+//           productId,
+//           attribute.size,
+//           attribute.color,
+//           attribute.quantity,
+//           attribute.price,
+//           barcodeValue
+//         ]);
+
+//         console.log(resultsAttributes);
+//       });
+//     }
+
+//     // const uploader = (path) => cloudinaryUploadImg(path, "images");
+//     const uploader = (path) => cloudinaryUploadImg(path,"images");
+//     const urls = [];
+//     const files = req.files;
+//     // console.log(files);
+//     for (let i = 0; i < files.length; i++) {
+//       const { path } = files[i];
+//       const newPath = await uploader(path);
+//       urls.push(newPath);
+
+//       const imageSql =
+//         "INSERT INTO image ( image_link, product_id,  asset_id, public_id) VALUES (?, ?, ?, ?)";
+//       const [addedImage] = await connection.execute(imageSql, [
+//         newPath.url,
+//         productId,
+//         newPath.asset_id,
+//         newPath.public_id,
+//       ]);
+//     }
+
+//     connection.release();
+
+//     res.json({ message: "Product created successfully", productId, urls });
+//   } catch (err) {
+//     res.status(500).json({ message: "Failed to create product" });
+//   }
+// });
+
 const updateProduct = asyncHandler(async (req, res) => {
+  console.log("ggggggggggg");
   const { productId } = req.params;
   const { title, description, brand, category, attributes } = req.body;
   console.log(req.body);
@@ -145,23 +245,21 @@ const updateProduct = asyncHandler(async (req, res) => {
       lowestPrice,
       productId,
     ]);
-    console.log("aawa");
-
-    console.log(result);
+    
     // Update the size_color_quantity records for the product
     if (parsedAttributes && parsedAttributes.length > 0) {
       const deleteSql = `DELETE FROM size_color_quantity WHERE product_id = ?`;
       await connection.execute(deleteSql, [productId]);
 
       const insertPromises = parsedAttributes.map(async (attribute, index) => {
-        const { size, color, quantity, price } = attribute;
+        const { size, color, quantity, price , buyingPrice} = attribute;
 
         const barcodeValue = `${productId}${index}${size}`;
 
         const insertSql = `
           INSERT INTO size_color_quantity
-          (product_id, size_id, color_code, quantity, unit_price, barcode)
-          VALUES (?, ?, ?, ?, ?, ?)
+          (product_id, size_id, color_code, quantity, unit_price, buying_price, barcode)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
         await connection.execute(insertSql, [
           productId,
@@ -169,11 +267,12 @@ const updateProduct = asyncHandler(async (req, res) => {
           color,
           quantity,
           price,
+          buyingPrice,
           barcodeValue,
         ]);
       });
 
-      await Promise.all(insertPromises);
+      // await Promise.all(insertPromises);
     }
 
     // Update the image records for the product
@@ -349,6 +448,7 @@ const getProduct = asyncHandler(async (req, res) => {
           color_code: row.color_code,
           quantity: row.quantity,
           unit_price: row.unit_price,
+          buyingPrice: row.buying_price
         });
       }
     });
@@ -468,168 +568,94 @@ const addToWishlist = asyncHandler(async (req, res) => {
 });
 
 
-const rating = async (req, res) => {
-  // const { _id } = req.user;
-  const { star, prodId, comment } = req.body;
-  const _id = 12;
-  try {
-    // Connect to MySQL database
-    const connection = await pool.getConnection();
 
-    // Check if the user has already rated the product
+
+const rating = async (req, res) => {
+  console.log(req.body);
+  const { stars, id, getProductId, review } = req.body;
+  try {
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
     const checkRatingQuery = `
           SELECT *
           FROM ratings
           WHERE user_id = ? AND product_id = ?
       `;
-    const [ratingRows] = await connection.execute(checkRatingQuery, [
-      _id,
-      prodId,
-    ]);
+    const [ratingRows] = await connection.execute(checkRatingQuery, [id, getProductId]);
     const alreadyRated = ratingRows.length > 0;
 
     if (alreadyRated) {
-      // Update existing rating
       const updateRatingQuery = `
               UPDATE ratings
               SET star = ?, comment = ?
               WHERE user_id = ? AND product_id = ?
           `;
-      await connection.execute(updateRatingQuery, [star, comment, _id, prodId]);
+      await connection.execute(updateRatingQuery, [stars, review, id, getProductId]);
     } else {
-      // Add new rating
       const addRatingQuery = `
               INSERT INTO ratings (user_id, product_id, star, comment)
               VALUES (?, ?, ?, ?)
           `;
-      await connection.execute(addRatingQuery, [_id, prodId, star, comment]);
+      await connection.execute(addRatingQuery, [id, getProductId, stars, review]);
     }
 
-    // Calculate total rating and update product
     const calculateRatingQuery = `
           SELECT AVG(star) AS total_rating
           FROM ratings
           WHERE product_id = ?
       `;
-    const [averageRatingRows] = await connection.execute(calculateRatingQuery, [
-      prodId,
-    ]);
-    console.log("Average Rating Rows:", averageRatingRows);
+    const [averageRatingRows] = await connection.execute(calculateRatingQuery, [getProductId]);
     const totalRating = averageRatingRows[0].total_rating;
-    console.log("Total Rating:", totalRating);
 
     const updateTotalRatingQuery = `
           UPDATE product
           SET total_rating = ?
           WHERE p_id = ?
       `;
-    const [updateResult] = await connection.execute(updateTotalRatingQuery, [
-      totalRating,
-      prodId,
-    ]);
-    // console.log("Update Result:", updateResult);
+    await connection.execute(updateTotalRatingQuery, [totalRating, getProductId]);
 
-    // Fetch and return updated product
     const getProductQuery = `
           SELECT *
           FROM product
           WHERE p_id = ?
       `;
-    const [productRows] = await connection.execute(getProductQuery, [prodId]);
+    const [productRows] = await connection.execute(getProductQuery, [getProductId]);
     const updatedProduct = productRows[0];
 
-    res.json(updatedProduct);
+    connection.commit(); // Commit the transaction
+
+    res.status(201).json(updatedProduct);
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Failed to rate product" });
   }
 };
 
-// const rating = asyncHandler(async (req, res) => {
-//   const { _id } = req.user;
-//   const { star, prodId, comment } = req.body;
-//   try {
-//     const product = await Product.findById(prodId);
-//     let alreadyRated = product.ratings.find(
-//       (userId) => userId.postedby.toString() === _id.toString()
-//     );
-
-//     if (alreadyRated) {
-//       const updateRating = await Product.updateOne(
-//         {
-//           ratings: { $elemMatch: alreadyRated },
-//         },
-//         {
-//           $set: { "ratings.$.star": star, "ratings.$.comment": comment },
-//         },
-//         {
-//           new: true,
-//         }
-//       );
-//     } else {
-//       const rateProduct = await Product.findByIdAndUpdate(
-//         prodId,
-//         {
-//           $push: {
-//             ratings: {
-//               star: star,
-//               comment: comment,
-//               postedby: _id,
-//             },
-//           },
-//         },
-//         {
-//           new: true,
-//         }
-//       );
-//     }
-//     const getallratings = await Product.findById(prodId);
-//     let totalRating = getallratings.ratings.length;
-//     let ratingsum = getallratings.ratings
-//       .map((item) => item.star)
-//       .reduce((prev, curr) => prev + curr, 0);
-//     let actualRating = Math.round(ratingsum / totalRating);
-//     let finalproduct = await Product.findByIdAndUpdate(
-//       prodId,
-//       {
-//         totalrating: actualRating,
-//       },
-//       { new: true }
-//     );
-//     res.json(finalproduct);
-//   } catch (error) {
-//     throw new Error(error);
-//   }
-// });
-
-// const uploadImages = asyncHandler(async (req, res) => {
-
-//   const { id } = req.params;
-//   validateMongoDBId(id);
-
-//   try{
-//     const uploader = (path) => cloudinaryUploadImg(path, 'images');
-//     const urls = [];
-//     const files = req.files;
-//     for (const file of files) {
-//       const { path } = file;
-//       const newPath = await uploader(path);
-//       urls.push(newPath);
-//       fs.unlinkSync(path);
-//     }
-//     const findProduct = await Product.findByIdAndUpdate(id,
-//     {
-//       images: urls.map(file=>{return file;}),
-//     },
-//     {new:true});
-//     res.json(findProduct);
-//   }
-//   catch(error){
-//     console.log(error);
-//     throw new Error(error);
-//   }
-
-// });
+const getRating = asyncHandler(async (req,res)=>{
+  const {id} = req.params;
+  console.log();
+  try {
+    const connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      `
+      SELECT 
+      p.p_id,
+      p.p_title,
+      p.total_rating,
+      r.star,
+      r.comment
+      FROM product p
+      LEFT JOIN ratings r ON p.p_id = r.product_id
+      WHERE p.p_id = ?
+      `, [id]
+    );
+    connection.release();
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+})
 
 const uploadImages = asyncHandler(async (req, res) => {
   try {
@@ -675,4 +701,5 @@ module.exports = {
   rating,
   uploadImages,
   deleteImages,
+  getRating
 };

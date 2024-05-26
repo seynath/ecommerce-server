@@ -7,7 +7,8 @@ const {
   getAllSuppliers,
   getASupplier,
   deleteProductFromSupplierByID,
-  updateSupplierByProduct
+  updateSupplierByProduct,
+  getProductsFromSupplierId
 } = require("../controllers/supplierCtrl");
 const { authMiddleware, isAdmin } = require("../middlewares/authMiddleware");
 const router = express.Router();
@@ -17,6 +18,7 @@ router.post("/", authMiddleware, isAdmin, createSupplier);
 // router.delete("/:id", authMiddleware, isAdmin, deleteSize);
 // router.get("/:id", getSize);
 router.get("/", getAllSuppliers);
+router.get("/get-supplier-products/:supplierId",getProductsFromSupplierId)
 router.get("/getsupplierbyid/:supplierId", getASupplier)
 router.put("/delete-supplier-products", deleteProductFromSupplierByID)
 router.put("/update-supplier/:supplierId", updateSupplierByProduct);

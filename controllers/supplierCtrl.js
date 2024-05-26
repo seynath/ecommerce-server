@@ -311,10 +311,88 @@ const updateSupplierByProduct = asyncHandler(async (req,res)=>{
   }
 })
 
+const getProductsFromSupplierId = asyncHandler(async (req,res) =>{
+  const {supplierId} = req.params;
+  try {
+    const connection = await pool.getConnection();
+    const getProductsQuery = `
+    SELECT
+    supplier_products.supplier_products_id,
+    supplier_products.product_id,
+    supplier_products.supplier_id,
+    product.p_id,
+    product.p_title,
+    product.p_slug,
+    product.p_description,
+    product.brand,
+    product.quantity,
+    product.price,
+    product.sold,
+    product.total_rating,
+    product.category_id,
+    product.created_at,
+    supplier.supplier_name,
+    supplier.supplier_email,
+    supplier.supplier_phone,
+    supplier.supplier_address,
+    image.image_id,
+    image.image_link,
+    image.asset_id,
+    image.public_id
+  FROM
+    supplier_products
+  LEFT JOIN
+    product ON supplier_products.product_id = product.p_id
+  LEFT JOIN
+    supplier ON supplier_products.supplier_id = supplier.supplier_id
+  LEFT JOIN
+    image ON product.p_id = image.product_id
+  WHERE
+    supplier.supplier_id = ?;
+      `;
+    const [productsResult] = await connection.execute(getProductsQuery, [supplierId]);
+    const uniqueProducts = productsResult.reduce((acc, product) => {
+      // Find this product in the accumulator array
+      const existingProduct = acc.find(p => p.p_id === product.p_id);
+    
+      if (existingProduct) {
+        // If this product is already in the accumulator, add this image to its images array
+        existingProduct.images.push({
+          image_id: product.image_id,
+          image_link: product.image_link,
+          asset_id: product.asset_id,
+          public_id: product.public_id
+        });
+      } else {
+        // If this product is not in the accumulator, add it to the accumulator
+        // Also create an images array for this product
+        acc.push({
+          ...product,
+          images: [{
+            image_id: product.image_id,
+            image_link: product.image_link,
+            asset_id: product.asset_id,
+            public_id: product.public_id
+          }]
+        });
+      }
+    
+      return acc;
+    }, []);
+    
+    connection.release();
+    return res.status(200).json(uniqueProducts);
+  } catch (error) {
+    throw new Error(error);
+  }
+})
+
+
 module.exports = {
   createSupplier,
   getAllSuppliers,
   getASupplier,
   deleteProductFromSupplierByID,
   updateSupplierByProduct,
+  getProductsFromSupplierId
 };
