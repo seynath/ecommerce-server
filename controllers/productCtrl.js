@@ -701,5 +701,5 @@ module.exports = {
   rating,
   uploadImages,
   deleteImages,
-  getRating
+  getRating,
 };

@@ -8,7 +8,8 @@ const {
   getASupplier,
   deleteProductFromSupplierByID,
   updateSupplierByProduct,
-  getProductsFromSupplierId
+  getProductsFromSupplierId,
+  getSupplierbyDetails
 } = require("../controllers/supplierCtrl");
 const { authMiddleware, isAdmin } = require("../middlewares/authMiddleware");
 const router = express.Router();
@@ -20,6 +21,7 @@ router.post("/", authMiddleware, isAdmin, createSupplier);
 router.get("/", getAllSuppliers);
 router.get("/get-supplier-products/:supplierId",getProductsFromSupplierId)
 router.get("/getsupplierbyid/:supplierId", getASupplier)
+// router.get("/getSupplierbyDetails/:supplierId", getSupplierbyDetails);
 router.put("/delete-supplier-products", deleteProductFromSupplierByID)
-router.put("/update-supplier/:supplierId", updateSupplierByProduct);
+router.put("/update-supplier", updateSupplierByProduct);
 module.exports = router;

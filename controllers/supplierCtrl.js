@@ -282,25 +282,26 @@ const deleteProductFromSupplierByID = asyncHandler(async(req,res) =>{
 })
 
 const updateSupplierByProduct = asyncHandler(async (req,res)=>{
-  const {supplierId} = req.params;
-  const value = req.body['0'];
-  const {supplier_name, supplier_email, supplier_phone, supplier_address} = value;
-  console.log(req.body.product_ids);
-  const productIds = req.body.product_ids;
+
+
+  const {supplier_id, supplier_name, supplier_email, supplier_phone, supplier_address} = req.body.supplierDetails;
+  console.log("awa");
+  const productIds = req.body.productIds;
+
   try {
     const connection = await pool.getConnection();
     await connection.beginTransaction();
     const updateSupplierQuery = "UPDATE supplier SET supplier_name = ?, supplier_email = ?, supplier_phone = ?, supplier_address = ? WHERE supplier_id = ?";
-    await connection.execute(updateSupplierQuery, [supplier_name, supplier_email, supplier_phone, supplier_address, supplierId]);
+    await connection.execute(updateSupplierQuery, [supplier_name, supplier_email, supplier_phone, supplier_address, supplier_id]);
 
     const deleteAssociationsQuery = "DELETE FROM supplier_products WHERE supplier_id = ?";
-    await connection.execute(deleteAssociationsQuery, [supplierId]);
+    await connection.execute(deleteAssociationsQuery, [supplier_id]);
 
 
 
     const associateProductsQuery = "INSERT INTO supplier_products (product_id, supplier_id) VALUES (?, ?)";
     for (let productId of productIds) {
-      await connection.execute(associateProductsQuery, [productId, supplierId]);
+      await connection.execute(associateProductsQuery, [productId, supplier_id]);
     }
 
     await connection.commit();
@@ -387,6 +388,28 @@ const getProductsFromSupplierId = asyncHandler(async (req,res) =>{
   }
 })
 
+const getSupplierbyDetails = asyncHandler(async (req,res) => {
+  const {id} = req.params;
+  try {
+    const connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      `
+      SELECT 
+      s.*,
+      sp.product_id
+      FROM supplier s
+      LEFT JOIN supplier_product sp ON s.supplier_id = sp.supplier_id
+      WHERE s.supplier_id = ?
+      `, [id]
+    );
+    connection.release();
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+})
+
+
 
 module.exports = {
   createSupplier,
@@ -394,5 +417,6 @@ module.exports = {
   getASupplier,
   deleteProductFromSupplierByID,
   updateSupplierByProduct,
-  getProductsFromSupplierId
+  getProductsFromSupplierId,
+  getSupplierbyDetails
 };
