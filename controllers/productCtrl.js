@@ -55,12 +55,11 @@ const createProduct = asyncHandler(async (req, res) => {
         console.log(`Color: ${attribute.color}`);
         console.log(`Quantity: ${attribute.quantity}`);
         console.log(`Price: ${attribute.price}`);
-        console.log(`Buying Price: ${attribute.buyingPrice}`)
+        console.log(`Buying Price: ${attribute.buyingPrice}`);
 
         barcodeValue = `${productId}${index}${attribute.size}`;
 
         console.log(barcodeValue);
-        
 
         const attributesSql = `INSERT INTO size_color_quantity (product_id, size_id, color_code, quantity, unit_price,buying_price, barcode) VALUES (?, ?, ?, ?, ?, ?, ?)`;
         const [resultsAttributes] = await connection.execute(attributesSql, [
@@ -70,7 +69,7 @@ const createProduct = asyncHandler(async (req, res) => {
           attribute.quantity,
           attribute.price,
           attribute.buyingPrice,
-          barcodeValue
+          barcodeValue,
         ]);
 
         console.log(resultsAttributes);
@@ -104,7 +103,6 @@ const createProduct = asyncHandler(async (req, res) => {
   }
 });
 
-
 // const createProduct = asyncHandler(async (req, res) => {
 //   console.log("before attributes");
 //   try {
@@ -113,7 +111,6 @@ const createProduct = asyncHandler(async (req, res) => {
 //     console.log(title, description, brand, category);
 
 //     console.log(attributes);
-
 
 //     const parsedAttributes = JSON.parse(attributes);
 
@@ -157,7 +154,6 @@ const createProduct = asyncHandler(async (req, res) => {
 //         barcodeValue = `${productId}${index}${attribute.size}`;
 
 //         console.log(barcodeValue);
-        
 
 //         const attributesSql = `INSERT INTO size_color_quantity (product_id, size_id, color_code, quantity, unit_price, barcode) VALUES (?, ?, ?, ?, ?, ?)`;
 //         const [resultsAttributes] = await connection.execute(attributesSql, [
@@ -245,14 +241,14 @@ const updateProduct = asyncHandler(async (req, res) => {
       lowestPrice,
       productId,
     ]);
-    
+
     // Update the size_color_quantity records for the product
     if (parsedAttributes && parsedAttributes.length > 0) {
       const deleteSql = `DELETE FROM size_color_quantity WHERE product_id = ?`;
       await connection.execute(deleteSql, [productId]);
 
       const insertPromises = parsedAttributes.map(async (attribute, index) => {
-        const { size, color, quantity, price , buyingPrice} = attribute;
+        const { size, color, quantity, price, buyingPrice } = attribute;
 
         const barcodeValue = `${productId}${index}${size}`;
 
@@ -299,7 +295,9 @@ const updateProduct = asyncHandler(async (req, res) => {
 
     await connection.commit();
 
-    res.status(201).json({ message: "Product updated successfully", productId, urls });
+    res
+      .status(201)
+      .json({ message: "Product updated successfully", productId, urls });
   } catch (error) {
     await connection.rollback();
     throw error;
@@ -342,15 +340,15 @@ const deleteProduct = asyncHandler(async (req, res) => {
   } finally {
     connection.release();
   }
-})
+});
 
-const getProductCashier = asyncHandler(async (req,res) =>{
-const {barcode} = req.params
+const getProductCashier = asyncHandler(async (req, res) => {
+  const { barcode } = req.params;
 
-try {
-  const connection = await pool.getConnection();
-  const [rows] = await connection.execute(
-    `
+  try {
+    const connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      `
     SELECT 
     p.p_id,
     p.p_title,
@@ -368,18 +366,15 @@ try {
 
     WHERE scq.barcode = ?
     `,
-    [barcode]
-  );
-  console.log(rows);
-  connection.release();
-  res.json(rows);
-  
-} catch (error) {
-  res.status(500).json({ message: error.message });
-
-  
-}
-})
+      [barcode]
+    );
+    console.log(rows);
+    connection.release();
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 const getProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -448,7 +443,7 @@ const getProduct = asyncHandler(async (req, res) => {
           color_code: row.color_code,
           quantity: row.quantity,
           unit_price: row.unit_price,
-          buyingPrice: row.buying_price
+          buyingPrice: row.buying_price,
         });
       }
     });
@@ -462,8 +457,6 @@ const getProduct = asyncHandler(async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
-
 
 const getAllProducts = async (req, res) => {
   try {
@@ -531,7 +524,6 @@ const getAllProducts = async (req, res) => {
   }
 };
 
-
 const addToWishlist = asyncHandler(async (req, res) => {
   const { id } = req.user;
   const { prodId } = req.body;
@@ -567,9 +559,6 @@ const addToWishlist = asyncHandler(async (req, res) => {
   }
 });
 
-
-
-
 const rating = async (req, res) => {
   console.log(req.body);
   const { stars, id, getProductId, review } = req.body;
@@ -582,7 +571,10 @@ const rating = async (req, res) => {
           FROM ratings
           WHERE user_id = ? AND product_id = ?
       `;
-    const [ratingRows] = await connection.execute(checkRatingQuery, [id, getProductId]);
+    const [ratingRows] = await connection.execute(checkRatingQuery, [
+      id,
+      getProductId,
+    ]);
     const alreadyRated = ratingRows.length > 0;
 
     if (alreadyRated) {
@@ -591,13 +583,23 @@ const rating = async (req, res) => {
               SET star = ?, comment = ?
               WHERE user_id = ? AND product_id = ?
           `;
-      await connection.execute(updateRatingQuery, [stars, review, id, getProductId]);
+      await connection.execute(updateRatingQuery, [
+        stars,
+        review,
+        id,
+        getProductId,
+      ]);
     } else {
       const addRatingQuery = `
               INSERT INTO ratings (user_id, product_id, star, comment)
               VALUES (?, ?, ?, ?)
           `;
-      await connection.execute(addRatingQuery, [id, getProductId, stars, review]);
+      await connection.execute(addRatingQuery, [
+        id,
+        getProductId,
+        stars,
+        review,
+      ]);
     }
 
     const calculateRatingQuery = `
@@ -605,7 +607,9 @@ const rating = async (req, res) => {
           FROM ratings
           WHERE product_id = ?
       `;
-    const [averageRatingRows] = await connection.execute(calculateRatingQuery, [getProductId]);
+    const [averageRatingRows] = await connection.execute(calculateRatingQuery, [
+      getProductId,
+    ]);
     const totalRating = averageRatingRows[0].total_rating;
 
     const updateTotalRatingQuery = `
@@ -613,14 +617,19 @@ const rating = async (req, res) => {
           SET total_rating = ?
           WHERE p_id = ?
       `;
-    await connection.execute(updateTotalRatingQuery, [totalRating, getProductId]);
+    await connection.execute(updateTotalRatingQuery, [
+      totalRating,
+      getProductId,
+    ]);
 
     const getProductQuery = `
           SELECT *
           FROM product
           WHERE p_id = ?
       `;
-    const [productRows] = await connection.execute(getProductQuery, [getProductId]);
+    const [productRows] = await connection.execute(getProductQuery, [
+      getProductId,
+    ]);
     const updatedProduct = productRows[0];
 
     connection.commit(); // Commit the transaction
@@ -632,8 +641,8 @@ const rating = async (req, res) => {
   }
 };
 
-const getRating = asyncHandler(async (req,res)=>{
-  const {id} = req.params;
+const getRating = asyncHandler(async (req, res) => {
+  const { id } = req.params;
   console.log();
   try {
     const connection = await pool.getConnection();
@@ -648,14 +657,15 @@ const getRating = asyncHandler(async (req,res)=>{
       FROM product p
       LEFT JOIN ratings r ON p.p_id = r.product_id
       WHERE p.p_id = ?
-      `, [id]
+      `,
+      [id]
     );
     connection.release();
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-})
+});
 
 const uploadImages = asyncHandler(async (req, res) => {
   try {
@@ -690,6 +700,24 @@ const deleteImages = asyncHandler(async (req, res) => {
   }
 });
 
+const getSales = asyncHandler(async (req,res) =>{
+  try{
+console.log("aawa");
+    const connection = await pool.getConnection();
+    const [rows] = await connection.execute(
+      `
+      SELECT sales.*, sales_items.* FROM sales LEFT JOIN sales_items ON sales.sales_id = sales_items.sales_id
+      `,
+    );
+    console.log(rows);
+    connection.release();
+    res.status(200).json(rows);
+  } catch(error){
+    res.status(500).json("naaaaaaaaa")
+    // throw new Error(error);
+  }
+})
+
 module.exports = {
   createProduct,
   getProduct,
@@ -702,4 +730,5 @@ module.exports = {
   uploadImages,
   deleteImages,
   getRating,
+  getSales
 };

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const {createProduct, getProduct,getProductCashier, getAllProducts,updateProduct, deleteProduct, addToWishlist, rating, getRating} = require('../controllers/productCtrl');
+const {createProduct, getProduct,getProductCashier, getAllProducts,updateProduct, deleteProduct, addToWishlist, rating, getRating, getSales} = require('../controllers/productCtrl');
 const {authMiddleware, isAdmin} = require('../middlewares/authMiddleware');
 const {productImgResize,uploadPhoto} = require('../middlewares/uploadImage');
 
@@ -10,6 +10,7 @@ router.post('/', authMiddleware, isAdmin, uploadPhoto.array("images", 10), produ
 // router.post('/', authMiddleware, isAdmin, createProduct);
 // router.post('/',authMiddleware, isAdmin, createProduct);
 // router.put("/upload", authMiddleware, isAdmin, uploadPhoto.array("images",10),productImgResize,uploadImages);
+router.get("/sales-admin", getSales) 
 router.get('/:id', getProduct);
 router.get("/cashier/:barcode", getProductCashier)
 
