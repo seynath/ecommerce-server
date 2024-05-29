@@ -171,29 +171,27 @@ const deleteSupplier = asyncHandler(async (req, res) => {
   }
 });
 
-const getASupplier11 = asyncHandler(async (req, res) => {
-  const { supplierId } = req.params;
-  
+const getSupplier = asyncHandler(async(req,res)=>{
+
+  const {supplierId} = req.params;
+
   try {
     const connection = await pool.getConnection();
 
-    const getSupplierQuerys = `
-    SELECT supplier_products.*, product.*, supplier.*, image.*
-    FROM supplier_products
-    LEFT JOIN product ON supplier_products.product_id = product.p_id
-    LEFT JOIN supplier ON supplier_products.supplier_id = supplier.supplier_id
-    LEFT JOIN image ON product.p_id = image.product_id
-    WHERE supplier.supplier_id = ?`
-
-    const [supplierResult] = await connection.execute(getSupplierQuerys, [supplierId]);
-    console.log(supplierResult);
+    const [rows] = await connection.execute(
+      `
+      SELECT *
+      FROM supplier 
+      WHERE supplier.supplier_id = ?
+      `, [supplierId]
+    );
     connection.release();
-    return res.status(200).json(supplierResult);
+    res.status(200).json(rows);
   } catch (error) {
-    // res.status(400).json("wada naa")
-    throw new Error(error);
+    res.status(401).json({ message: error.message });
   }
-});
+  })
+
 const getASupplier = asyncHandler(async (req, res) => {
   const { supplierId } = req.params;
 
@@ -418,5 +416,6 @@ module.exports = {
   deleteProductFromSupplierByID,
   updateSupplierByProduct,
   getProductsFromSupplierId,
-  getSupplierbyDetails
+  getSupplierbyDetails,
+  getSupplier,
 };

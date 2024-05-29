@@ -28,7 +28,7 @@ const createSize = asyncHandler(async (req, res) => {
     const newSize = sizeRows[0];
 
     connection.release();
-    return res.json(newSize);
+    return res.status(200).json(newSize);
 
   } catch (error) {
     throw new Error(error);
@@ -43,7 +43,7 @@ const getallSize  = asyncHandler ( async (req,res) =>{
     const sql = "SELECT * FROM size";
     const [sizes] = await connection.execute(sql);
     connection.release();
-    res.json(sizes);
+    res.status(200).json(sizes);
   }
   catch(err){
     throw new Error(err)

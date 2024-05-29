@@ -103,100 +103,6 @@ const createProduct = asyncHandler(async (req, res) => {
   }
 });
 
-// const createProduct = asyncHandler(async (req, res) => {
-//   console.log("before attributes");
-//   try {
-//     const { title, description, brand, category, attributes } = req.body;
-
-//     console.log(title, description, brand, category);
-
-//     console.log(attributes);
-
-//     const parsedAttributes = JSON.parse(attributes);
-
-//     // let lowestPrice = Number.MAX_SAFE_INTEGER;
-//     // if (parsedAttributes && parsedAttributes.length > 0) {
-//     //   lowestPrice = Math.min(...parsedAttributes.map(attr => attr.price));
-//     // }
-
-//     let lowestPrice = Infinity;
-//     if (parsedAttributes && parsedAttributes.length > 0) {
-//       lowestPrice = Math.min(
-//         ...parsedAttributes.map((attr) => parseFloat(attr.price))
-//       );
-//     }
-
-//     const slug = title ? slugify(title) : "";
-
-//     // Insert product into the database
-//     const connection = await pool.getConnection();
-
-//     const sql = `INSERT INTO product (p_title, p_slug, p_description, brand, category_id, price) VALUES (?, ?, ?, ?, ?, ?)`;
-//     const [result] = await connection.execute(sql, [
-//       title,
-//       slug,
-//       description,
-//       brand,
-//       category,
-//       lowestPrice,
-//     ]);
-//     const productId = result.insertId;
-//     console.log(productId);
-
-//     if (parsedAttributes && parsedAttributes.length > 0) {
-//       parsedAttributes.forEach(async (attribute, index) => {
-//         console.log(`Attribute ${index + 1}:`);
-//         console.log(`Size: ${attribute.size}`);
-//         console.log(`Color: ${attribute.color}`);
-//         console.log(`Quantity: ${attribute.quantity}`);
-//         console.log(`Price: ${attribute.price}`);
-
-//         barcodeValue = `${productId}${index}${attribute.size}`;
-
-//         console.log(barcodeValue);
-
-//         const attributesSql = `INSERT INTO size_color_quantity (product_id, size_id, color_code, quantity, unit_price, barcode) VALUES (?, ?, ?, ?, ?, ?)`;
-//         const [resultsAttributes] = await connection.execute(attributesSql, [
-//           productId,
-//           attribute.size,
-//           attribute.color,
-//           attribute.quantity,
-//           attribute.price,
-//           barcodeValue
-//         ]);
-
-//         console.log(resultsAttributes);
-//       });
-//     }
-
-//     // const uploader = (path) => cloudinaryUploadImg(path, "images");
-//     const uploader = (path) => cloudinaryUploadImg(path,"images");
-//     const urls = [];
-//     const files = req.files;
-//     // console.log(files);
-//     for (let i = 0; i < files.length; i++) {
-//       const { path } = files[i];
-//       const newPath = await uploader(path);
-//       urls.push(newPath);
-
-//       const imageSql =
-//         "INSERT INTO image ( image_link, product_id,  asset_id, public_id) VALUES (?, ?, ?, ?)";
-//       const [addedImage] = await connection.execute(imageSql, [
-//         newPath.url,
-//         productId,
-//         newPath.asset_id,
-//         newPath.public_id,
-//       ]);
-//     }
-
-//     connection.release();
-
-//     res.json({ message: "Product created successfully", productId, urls });
-//   } catch (err) {
-//     res.status(500).json({ message: "Failed to create product" });
-//   }
-// });
-
 const updateProduct = asyncHandler(async (req, res) => {
   console.log("ggggggggggg");
   const { productId } = req.params;
@@ -370,7 +276,7 @@ const getProductCashier = asyncHandler(async (req, res) => {
     );
     console.log(rows);
     connection.release();
-    res.json(rows);
+    res.status(200).json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -452,7 +358,7 @@ const getProduct = asyncHandler(async (req, res) => {
 
     connection.release();
     console.log(product);
-    res.json(product);
+    res.status(200).json(product);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -518,7 +424,7 @@ const getAllProducts = async (req, res) => {
     connection.release();
 
     // Send the processed data in the response
-    res.json(products);
+    res.status(200).json(products);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

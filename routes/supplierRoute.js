@@ -19,6 +19,7 @@ router.post("/", authMiddleware, isAdmin, createSupplier);
 // router.delete("/:id", authMiddleware, isAdmin, deleteSize);
 // router.get("/:id", getSize);
 router.get("/", getAllSuppliers);
+router.get("/:supplierId", getSupplier);
 router.get("/get-supplier-products/:supplierId",getProductsFromSupplierId)
 router.get("/getsupplierbyid/:supplierId", getASupplier)
 // router.get("/getSupplierbyDetails/:supplierId", getSupplierbyDetails);

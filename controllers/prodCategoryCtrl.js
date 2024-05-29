@@ -2,17 +2,6 @@ const asyncHandler = require('express-async-handler');
 const { createConnection } = require('mysql2');
 const { pool } = require('../config/db'); // adjust the path according to your project structure
 
-
-
-// const createCategory = asyncHandler(async (req, res) => {
-//   try {
-//     const newCategory = await PCategory.create(req.body);
-//     res.json(newCategory);
-//   } catch (error) {
-//     throw new Error(error);
-//   }
-// });
-
 const createCategory = async (req, res) => {
   try {
     // Extract category details from the request body
@@ -59,7 +48,7 @@ const createCategory = async (req, res) => {
 
 
     // Return the newly created category
-    res.json(newCategory);
+    res.status(200).json(newCategory);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Failed to create category" });
@@ -107,27 +96,12 @@ const updateCategory = async (req, res) => {
     const [updatedCategory] = await connection.execute(getCategoryQuery, [id]);
 
     // Send the updated category as response
-    res.json(updatedCategory[0]);
+    res.status(200).json(updatedCategory[0]);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
-
-
-// const updateCategory = asyncHandler(async (req, res) => {
-//   const { id } = req.params;
-//   validateMongoDbId(id);
-//   try {
-//     const updatedCategory = await PCategory.findByIdAndUpdate(id, req.body, {
-//       new: true,
-//     });
-//     res.json(updatedCategory);
-//   } catch (error) {
-//     throw new Error(error);
-//   }
-// });
 
 const deleteCategory = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -149,23 +123,12 @@ const getCategory = asyncHandler(async (req, res) => {
     const [getaCategory] = await connection.execute(sql, [id]);
     console.log("category rows", getaCategory);
 
-    res.json(getaCategory);
+    res.status(200).json(getaCategory);
   }
   catch (error) {
     throw new Error(error);
   }
 });
-
-// const getCategory = asyncHandler(async (req, res) => {
-//   const { id } = req.params;
-//   validateMongoDbId(id);
-//   try {
-//     const getaCategory = await PCategory.findById(id);
-//     res.json(getaCategory);
-//   } catch (error) {
-//     throw new Error(error);
-//   }
-// });
 
 
 const getallCategory = asyncHandler(async (req, res) => {
@@ -176,7 +139,7 @@ const getallCategory = asyncHandler(async (req, res) => {
     const [getallCategory] = await connection.execute(sql);
     // console.log("category rows", getallCategory);
 
-    res.json(getallCategory);
+    res.status(200).json(getallCategory);
   } catch (error) {
     throw new Error(error);
   }

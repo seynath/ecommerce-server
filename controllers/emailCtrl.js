@@ -27,35 +27,3 @@ module.exports = sendEmail;
 
 
 
-
-
-//   const { email, subject, message } = data;
-//   try {
-//     const transporter = nodeMailer.createTransport({
-//       service: 'gmail',
-//       auth: {
-//         user: process.env.EMAIL,
-//         pass: process.env.PASSWORD,
-//       },
-//     });
-
-//     const mailOptions = {
-//       from: process.env.EMAIL,
-//       to: email,
-//       subject: subject,
-//       text: message,
-//     };
-
-//     transporter.sendMail(mailOptions, (error, info) => {
-//       if (error) {
-//         throw new Error(error);
-//       } else {
-//         res.json({
-//           message: 'Email sent successfully',
-//         });
-//       }
-//     });
-//   } catch (error) {
-//     throw new Error(error);
-//   }
-// }
