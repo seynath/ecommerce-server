@@ -10,7 +10,6 @@ const saltRounds = 10;
 const bcrypt = require("bcrypt");
 
 
-
 const createUser = asyncHandler(async (req, res) => {
   try {
     const { firstname, lastname, email, mobile, password } = req.body;
@@ -178,7 +177,7 @@ const loginAdmin = async (req, res) => {
     });
 
     // Send the user's information along with an access token in the response
-    res.json({
+    res.status(200).json({
       _id: findAdmin.id,
       firstname: findAdmin.firstname,
       lastname: findAdmin.lastname,
@@ -213,7 +212,7 @@ const loginCashier = async (req, res) => {
     }
 
     // Check if the user is an admin
-    if (findCashier.role !== "cashier") {
+    if ((findCashier.role !== "cashier" ) && (findCashier.role !== "admin") ) {
       connection.release();
       throw new Error("Unauthorized access");
     }
@@ -253,7 +252,7 @@ const loginCashier = async (req, res) => {
     });
 
     // Send the user's information along with an access token in the response
-    res.json({
+    res.status(200).json({
       _id: findCashier.id,
       firstname: findCashier.firstname,
       lastname: findCashier.lastname,
@@ -1176,8 +1175,8 @@ const createOrder = asyncHandler(async (req, res) => {
   }
 });
 
+
 const createOrderCashier = asyncHandler(async (req, res) => {
-  console.log("huuuu");
   const { products } = req.body;
   const { id } = req.user;
   let salesIdForFront;
@@ -1359,6 +1358,22 @@ async function fetchOrderDetails(salesId) {
 //     },
 //   };
 // }
+const getCashierSalesByCashierId = asyncHandler(async(req,res)=>{
+  const {id} = req.user;
+  console.log(id);
+  try {
+    const connection = await pool.getConnection();
+    const [rows] = await connection.execute("SELECT * FROM sales WHERE user_id = ?",[id]);
+    if(rows.length === 0){
+      connection.release();
+      return res.status(200).json({message: "No Sales Found"});
+    }
+    connection.release();
+    res.status(200).json(rows);
+  } catch (error) {
+    throw new Error(error);
+  }
+})
 
 const getOrders = asyncHandler(async (req, res) => {
   
@@ -1577,5 +1592,6 @@ module.exports = {
   printBillCashier,
   getOrderProducts,
   getOrdersById,
-  updateRole
+  updateRole,
+  getCashierSalesByCashierId
 };

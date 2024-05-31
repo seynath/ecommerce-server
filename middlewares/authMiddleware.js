@@ -6,40 +6,6 @@ require("dotenv").config();
 
 
 
-// const authMiddleware = asyncHandler(async (req, res, next) => {
-//     const token = req.headers.authorization;
-//     if (token && token.startsWith('Bearer')) {
-//         try {
-//             const decodedToken = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-
-//             // Get a MySQL connection from the pool
-//             const connection = await pool.getConnection();
-
-//             // Execute a SELECT query to find the user with the decoded ID
-//             console.log("Pakaya")
-//             console.log(decodedToken.id)
-//             const [rows] = await connection.execute('SELECT * FROM users WHERE id = ?', [decodedToken.id]);
-//             console.log("Pakaya2")
-//             connection.release();
-
-//             // Check if the user exists
-//             if (rows.length === 0) {
-//                 throw new Error('Not Authorized, User Not Found');
-//             }
-
-//             // Attach the user object to the request for further processing
-//             req.user = rows[0];
-
-//             next();
-//         } catch (error) {
-//             throw new Error('Not Authorized, Token Failed');
-//         }
-//     } else {
-//         throw new Error('Not Authorized, No Token');
-//     }
-// });
-
-// module.exports = authMiddleware;
 
 
 const authMiddleware = asyncHandler(async (req, res, next) => {
@@ -80,31 +46,6 @@ const authMiddleware = asyncHandler(async (req, res, next) => {
   }
 });
 
-
-// const authMiddleware = asyncHandler(async (req, res, next) => {
-
-//     const token = req.headers.authorization;
-//     if (token && token.startsWith('Bearer')) {
-//         try {
-//             const decodedToken = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-
-//             // const connection = await pool.getConnection();
-//             const connection = await pool.getConnection();
-//             const [rows] = await connection.execute('SELECT * FROM users WHERE id = ?', [decodedToken.id]);
-//             connection.release();
-//             const user = rows[0];
-//             if (!user) {
-//                 throw new Error('Not Authorized, Token Failed');
-//             }
-//             req.user = user;
-//             next();
-//         } catch (error) {
-//             throw new Error('Not Authorized, Token Failed');
-//         }
-//     } else {
-//         throw new Error('Not Authorized, No Token');
-//     }
-// });
 
 const isAdmin = asyncHandler(async (req, res, next) => {
     const { email } = req.user;

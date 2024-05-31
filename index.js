@@ -29,8 +29,8 @@ app.use('/api/category', categoryRouter);
 app.use("/api/coupon", couponRouter);
 app.use("/api/color", colorRouter);
 app.use("/api/enquiry", enqRouter);
-app.use("/api/size", sizeRoute)
-app.use('/api/supplier',supplierRouter)
+app.use("/api/size", sizeRoute);
+app.use('/api/supplier',supplierRouter);
 
 app.use(notFound);
 app.use(errorHandler);
