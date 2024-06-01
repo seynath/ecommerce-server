@@ -5,10 +5,12 @@ const jwt = require("jsonwebtoken");
 const sendEmail = require("../controllers/emailCtrl");
 const crypto = require("crypto");
 const uniqid = require("uniqid");
-const { pool } = require("../config/db"); // import the connection pool
+const { db, pool } = require("../config/db");
+// const { pool } = require("../config/db"); // import the connection pool
 const saltRounds = 10;
 const bcrypt = require("bcrypt");
-
+const { resolve } = require("path");
+const { rejects } = require("assert");
 
 const createUser = asyncHandler(async (req, res) => {
   try {
@@ -18,13 +20,18 @@ const createUser = asyncHandler(async (req, res) => {
     const address = " ";
 
     // Get a connection from the pool
-    const connection = await pool.getConnection();
 
     // Check if user with the given email already exists
-    const [existingUsers] = await connection.execute(
-      "SELECT * FROM users WHERE email = ?",
-      [email]
-    );
+
+    const existingUsers = await new Promise((resolve, rejects) => {
+      db.query("SELECT * FROM users WHERE email = ?", [email], (err, rows) => {
+        if (err) {
+          rejects(err);
+        }
+        resolve(rows);
+      });
+    });
+
     if (existingUsers.length > 0) {
       connection.release();
       return res.status(400).json({ message: "User Already Exists" });
@@ -33,17 +40,34 @@ const createUser = asyncHandler(async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Create a new user
-    const result = await connection.execute(
-      "INSERT INTO users (firstname, lastname, email, mobile, password, role, address) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [firstname, lastname, email, mobile, hashedPassword, role, address]
-    );
+
+    const result = await new Promise((resolve, rejects) => {
+      db.query(
+        "INSERT INTO users (firstname, lastname, email, mobile, password, role) VALUES (?, ?, ?, ?, ?, ?)",
+        [firstname, lastname, email, mobile, hashedPassword, role],
+        (err, rows) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(rows);
+        }
+      );
+    });
 
     // Create an empty cart for the new user
-    await connection.execute("INSERT INTO cart (user_id) VALUES (?)", [
-      result[0].insertId,
-    ]);
 
-    connection.release();
+    await new Promise((resolve, rejects) => {
+      db.query(
+        "INSERT INTO cart (user_id) VALUES (?)",
+        [result[0].insertId],
+        (err, rows) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(rows);
+        }
+      );
+    });
 
     res.status(201).json({
       message: "User created successfully",
@@ -53,31 +77,86 @@ const createUser = asyncHandler(async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
+// const createUser = asyncHandler(async (req, res) => {
+//   try {
+//     const { firstname, lastname, email, mobile, password } = req.body;
+//     console.log(req.body);
+//     const role = "user";
+//     const address = " ";
 
+//     // Get a connection from the pool
 
+//     // Check if user with the given email already exists
 
+//     // const results = await new Promise((resolve,rejects)=>{
+//     //   db.query("SELECT * FROM users WHERE email = ?",[email],(err,rows)=>{
+//     //     if(err){
+//     //       rejects(err)
+//     //     }
+//     //     resolve(rows)
+//     //   })
+//     // })
+//     // console.log(results)
+//     const connection = pool.getConnection()
 
+//     const [existingUsers] = await connection.execute(
+//       "SELECT * FROM users WHERE email = ?",
+//       [email]
+//     );
 
+//     if (existingUsers.length > 0) {
+//       connection.release();
+//       return res.status(400).json({ message: "User Already Exists" });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+//     // Create a new user
+//     const result = await db.query(
+//       "INSERT INTO users (firstname, lastname, email, mobile, password, role, address) VALUES (?, ?, ?, ?, ?, ?, ?)",
+//       [firstname, lastname, email, mobile, hashedPassword, role, address]
+//     );
+
+//     // Create an empty cart for the new user
+//     await connection.execute("INSERT INTO cart (user_id) VALUES (?)", [
+//       result[0].insertId,
+//     ]);
+
+//     res.status(201).json({
+//       message: "User created successfully",
+//       userId: result[0].insertId,
+//     });
+//   } catch (error) {
+//     res.status(400).json({ message: error.message });
+//   }
+// });
 
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   try {
     // Get a connection from the pool
-    const connection = await pool.getConnection();
 
     // Check if user with the given email exists
-    const [rows] = await connection.execute(
-      "SELECT * FROM users WHERE email = ?",
-      [email]
-    );
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM users WHERE email = ?",
+        [email],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
+
     const user = rows[0];
     // if (!user) {
     //   connection.release();
     //   throw new Error("User not found")}
 
     if (rows.length === 0 || !user) {
-      connection.release();
       return res.status(401).json({ message: "Invalid Credentials" });
     }
 
@@ -85,24 +164,21 @@ const loginUser = asyncHandler(async (req, res) => {
     const passwordMatched = await bcrypt.compare(password, user.password);
 
     if (!passwordMatched) {
-      connection.release();
       return res.status(401).json({ message: "Invalid Credentials" });
     }
 
     // Generate a JSON Web Token (JWT) for the user
     const token = generateToken(user.id);
     // store the token in user table , refreshToken field
-    const [rows1] = await connection.execute(
-      "UPDATE users SET refreshToken = ? where id = ?",
-      [token, user.id]
-    );
+    // const [rows1] = await connection.execute(
+    //   "UPDATE users SET refreshToken = ? where id = ?",
+    //   [token, user.id]
+    // );
 
-    if (rows1.length === 0) {
-      connection.release();
-      return res.status(401).json({ message: "Server Error" });
-    }
-
-    connection.release();
+    // if (rows1.length === 0) {
+    //   connection.release();
+    //   return res.status(401).json({ message: "Server Error" });
+    // }
 
     // Send the user data and token as a response
     res.status(200).json({
@@ -118,30 +194,94 @@ const loginUser = asyncHandler(async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+// const loginUser = asyncHandler(async (req, res) => {
+//   const { email, password } = req.body;
+
+//   try {
+//     // Get a connection from the pool
+//     const connection = await pool.getConnection();
+
+//     // Check if user with the given email exists
+//     const [rows] = await connection.execute(
+//       "SELECT * FROM users WHERE email = ?",
+//       [email]
+//     );
+//     const user = rows[0];
+//     // if (!user) {
+//     //   connection.release();
+//     //   throw new Error("User not found")}
+
+//     if (rows.length === 0 || !user) {
+//       connection.release();
+//       return res.status(401).json({ message: "Invalid Credentials" });
+//     }
+
+//     // Compare the provided password with the hashed password stored in the database
+//     const passwordMatched = await bcrypt.compare(password, user.password);
+
+//     if (!passwordMatched) {
+//       connection.release();
+//       return res.status(401).json({ message: "Invalid Credentials" });
+//     }
+
+//     // Generate a JSON Web Token (JWT) for the user
+//     const token = generateToken(user.id);
+//     // store the token in user table , refreshToken field
+//     // const [rows1] = await connection.execute(
+//     //   "UPDATE users SET refreshToken = ? where id = ?",
+//     //   [token, user.id]
+//     // );
+
+//     // if (rows1.length === 0) {
+//     //   connection.release();
+//     //   return res.status(401).json({ message: "Server Error" });
+//     // }
+
+//     connection.release();
+
+//     // Send the user data and token as a response
+//     res.status(200).json({
+//       id: user.id,
+//       firstname: user.firstname,
+//       lastname: user.lastname,
+//       email: user.email,
+//       mobile: user.mobile,
+//       isAdmin: user.isAdmin,
+//       token: token,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// });
 
 const loginAdmin = async (req, res) => {
   const { email, password } = req.body;
 
   try {
     // Get a MySQL connection from the pool
-    const connection = await pool.getConnection();
 
     // Execute a SELECT query to find the user with the provided email
-    const [rows] = await connection.execute(
-      "SELECT * FROM users WHERE email = ?",
-      [email]
-    );
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM users WHERE email = ?",
+        [email],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
+
     const findAdmin = rows[0];
-    console.log(findAdmin);
 
     if (!findAdmin) {
-      connection.release();
       throw new Error("Email not found");
     }
 
     // Check if the user is an admin
     if (findAdmin.role !== "admin") {
-      connection.release();
       throw new Error("Unauthorized access");
     }
 
@@ -149,26 +289,22 @@ const loginAdmin = async (req, res) => {
     const passwordMatched = await bcrypt.compare(password, findAdmin.password);
 
     if (!passwordMatched) {
-      connection.release();
       throw new Error("Incorrect password");
     }
 
     // Generate a refresh token
     const refreshToken = await generateRefreshToken(findAdmin.id);
-    console.log(refreshToken);
 
     // Update the user's refresh token in the database
-    const [rows1] = await connection.execute(
-      "UPDATE users SET refreshToken = ? WHERE id = ?",
-      [refreshToken, findAdmin.id]
-    );
+    // const [rows1] = await connection.execute(
+    //   "UPDATE users SET refreshToken = ? WHERE id = ?",
+    //   [refreshToken, findAdmin.id]
+    // );
 
-    if (rows1.length === 0) {
-      connection.release();
-      throw new Error("Server Error");
-    }
-
-    connection.release();
+    // if (rows1.length === 0) {
+    //   connection.release();
+    //   throw new Error("Server Error");
+    // }
 
     // Set the refresh token in a cookie
     res.cookie("refreshToken", refreshToken, {
@@ -190,30 +326,107 @@ const loginAdmin = async (req, res) => {
     res.status(401).json({ message: error.message });
   }
 };
+// const loginAdmin = async (req, res) => {
+//   const { email, password } = req.body;
+
+//   try {
+//     // Get a MySQL connection from the pool
+//     const connection = await pool.getConnection();
+
+//     // Execute a SELECT query to find the user with the provided email
+//     const [rows] = await connection.execute(
+//       "SELECT * FROM users WHERE email = ?",
+//       [email]
+//     );
+//     const findAdmin = rows[0];
+//     console.log(findAdmin);
+
+//     if (!findAdmin) {
+//       connection.release();
+//       throw new Error("Email not found");
+//     }
+
+//     // Check if the user is an admin
+//     if (findAdmin.role !== "admin") {
+//       connection.release();
+//       throw new Error("Unauthorized access");
+//     }
+
+//     // Compare the provided password with the hashed password stored in the database
+//     const passwordMatched = await bcrypt.compare(password, findAdmin.password);
+
+//     if (!passwordMatched) {
+//       connection.release();
+//       throw new Error("Incorrect password");
+//     }
+
+//     // Generate a refresh token
+//     const refreshToken = await generateRefreshToken(findAdmin.id);
+//     console.log(refreshToken);
+
+//     // Update the user's refresh token in the database
+//     // const [rows1] = await connection.execute(
+//     //   "UPDATE users SET refreshToken = ? WHERE id = ?",
+//     //   [refreshToken, findAdmin.id]
+//     // );
+
+//     // if (rows1.length === 0) {
+//     //   connection.release();
+//     //   throw new Error("Server Error");
+//     // }
+
+//     connection.release();
+
+//     // Set the refresh token in a cookie
+//     res.cookie("refreshToken", refreshToken, {
+//       httpOnly: true,
+//       maxAge: 72 * 60 * 60 * 1000,
+//     });
+
+//     // Send the user's information along with an access token in the response
+//     res.status(200).json({
+//       _id: findAdmin.id,
+//       firstname: findAdmin.firstname,
+//       lastname: findAdmin.lastname,
+//       email: findAdmin.email,
+//       mobile: findAdmin.mobile,
+//       isAdmin: findAdmin.role,
+//       token: refreshToken,
+//     });
+//   } catch (error) {
+//     res.status(401).json({ message: error.message });
+//   }
+// };
+
 const loginCashier = async (req, res) => {
   const { email, password } = req.body;
 
   try {
     // Get a MySQL connection from the pool
-    const connection = await pool.getConnection();
 
     // Execute a SELECT query to find the user with the provided email
-    const [rows] = await connection.execute(
-      "SELECT * FROM users WHERE email = ?",
-      [email]
-    );
+
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM users WHERE email = ?",
+        [email],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
+
     const findCashier = rows[0];
-    console.log("athule");
-    console.log(findCashier);
 
     if (!findCashier) {
-      connection.release();
       throw new Error("Email not found");
     }
 
     // Check if the user is an admin
-    if ((findCashier.role !== "cashier" ) && (findCashier.role !== "admin") ) {
-      connection.release();
+    if (findCashier.role !== "cashier" && findCashier.role !== "admin") {
       throw new Error("Unauthorized access");
     }
 
@@ -224,26 +437,22 @@ const loginCashier = async (req, res) => {
     );
 
     if (!passwordMatched) {
-      connection.release();
       throw new Error("Incorrect password");
     }
 
     // Generate a refresh token
     const refreshToken = await generateRefreshToken(findCashier.id);
-    console.log(refreshToken);
 
     // Update the user's refresh token in the database
-    const [rows1] = await connection.execute(
-      "UPDATE users SET refreshToken = ? WHERE id = ?",
-      [refreshToken, findCashier.id]
-    );
+    // const [rows1] = await connection.execute(
+    //   "UPDATE users SET refreshToken = ? WHERE id = ?",
+    //   [refreshToken, findCashier.id]
+    // );
 
-    if (rows1.length === 0) {
-      connection.release();
-      throw new Error("Server Error");
-    }
-
-    connection.release();
+    // if (rows1.length === 0) {
+    //   connection.release();
+    //   throw new Error("Server Error");
+    // }
 
     // Set the refresh token in a cookie
     res.cookie("refreshToken", refreshToken, {
@@ -265,39 +474,136 @@ const loginCashier = async (req, res) => {
     res.status(401).json({ message: error.message });
   }
 };
+// const loginCashier = async (req, res) => {
+//   const { email, password } = req.body;
+
+//   try {
+//     // Get a MySQL connection from the pool
+//     const connection = await pool.getConnection();
+
+//     // Execute a SELECT query to find the user with the provided email
+//     const [rows] = await connection.execute(
+//       "SELECT * FROM users WHERE email = ?",
+//       [email]
+//     );
+//     const findCashier = rows[0];
+//     console.log("athule");
+//     console.log(findCashier);
+
+//     if (!findCashier) {
+//       connection.release();
+//       throw new Error("Email not found");
+//     }
+
+//     // Check if the user is an admin
+//     if ((findCashier.role !== "cashier" ) && (findCashier.role !== "admin") ) {
+//       connection.release();
+//       throw new Error("Unauthorized access");
+//     }
+
+//     // Compare the provided password with the hashed password stored in the database
+//     const passwordMatched = await bcrypt.compare(
+//       password,
+//       findCashier.password
+//     );
+
+//     if (!passwordMatched) {
+//       connection.release();
+//       throw new Error("Incorrect password");
+//     }
+
+//     // Generate a refresh token
+//     const refreshToken = await generateRefreshToken(findCashier.id);
+//     console.log(refreshToken);
+
+//     // Update the user's refresh token in the database
+//     const [rows1] = await connection.execute(
+//       "UPDATE users SET refreshToken = ? WHERE id = ?",
+//       [refreshToken, findCashier.id]
+//     );
+
+//     if (rows1.length === 0) {
+//       connection.release();
+//       throw new Error("Server Error");
+//     }
+
+//     connection.release();
+
+//     // Set the refresh token in a cookie
+//     res.cookie("refreshToken", refreshToken, {
+//       httpOnly: true,
+//       maxAge: 72 * 60 * 60 * 1000,
+//     });
+
+//     // Send the user's information along with an access token in the response
+//     res.status(200).json({
+//       _id: findCashier.id,
+//       firstname: findCashier.firstname,
+//       lastname: findCashier.lastname,
+//       email: findCashier.email,
+//       mobile: findCashier.mobile,
+//       isAdmin: findCashier.role,
+//       token: refreshToken,
+//     });
+//   } catch (error) {
+//     res.status(401).json({ message: error.message });
+//   }
+// };
 
 const getallUser = async (req, res) => {
   try {
-    // Get a MySQL connection from the pool
-    const connection = await pool.getConnection();
-
     // Execute a SELECT query to fetch all users
-    const [rows] = await connection.execute("SELECT * FROM users");
+    const rows = await new Promise((resolve, rejects) => {
+      db.query("SELECT * FROM users", (err, results) => {
+        if (err) {
+          rejects(err);
+        }
+        resolve(results);
+      });
+    });
+
     if (rows.length === 0) {
-      connection.release();
       return res.status(404).json({ message: "No Users Found" });
     }
-    connection.release();
 
     // Send the fetched users in the response
-    res.json(rows);
+    res.status(200).json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+// const getallUser = async (req, res) => {
+//   try {
+//     // Get a MySQL connection from the pool
+//     const connection = await pool.getConnection();
 
+//     // Execute a SELECT query to fetch all users
+//     const [rows] = await connection.execute("SELECT * FROM users");
+//     if (rows.length === 0) {
+//       connection.release();
+//       return res.status(404).json({ message: "No Users Found" });
+//     }
+//     connection.release();
 
+//     // Send the fetched users in the response
+//     res.json(rows);
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 
 const getaUser = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Get a MySQL connection from the pool
-    const connection = await pool.getConnection()
-    // Execute a SELECT query to fetch the user with the provided ID
-    const [rows] = await connection.execute("SELECT * FROM users WHERE id = ?", [id]);
-
-    connection.release();
+    const rows = await new Promise((resolve, rejects) => {
+      db.query("SELECT * FROM users WHERE id = ?", [id], (err, results) => {
+        if (err) {
+          rejects(err);
+        }
+        resolve(results);
+      });
+    });
 
     // Check if user with the given ID exists
     if (rows.length === 0) {
@@ -305,29 +611,51 @@ const getaUser = async (req, res) => {
     }
 
     // Send the fetched user in the response
-    res.json(rows[0]);
+    res.status(200).json(rows[0]);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+// const getaUser = async (req, res) => {
+//   const { id } = req.params;
 
+//   try {
+//     // Get a MySQL connection from the pool
+//     const connection = await pool.getConnection()
+//     // Execute a SELECT query to fetch the user with the provided ID
+//     const [rows] = await connection.execute("SELECT * FROM users WHERE id = ?", [id]);
 
+//     connection.release();
+
+//     // Check if user with the given ID exists
+//     if (rows.length === 0) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+
+//     // Send the fetched user in the response
+//     res.json(rows[0]);
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 
 const deleteaUser = async (req, res) => {
   const { id } = req.params;
 
   try {
     // Get a MySQL connection from the pool
-    const connection = req.connection;
-    await checkConnection(connection);
 
-    // Execute a DELETE query to delete the user with the provided ID
-    await connection.promise().query("DELETE FROM users WHERE id = ?", [id]);
-
-    connection.release();
+    await new Promise((resolve, rejects) => {
+      db.query("DELETE FROM users WHERE id = ?", [id], (err, results) => {
+        if (err) {
+          rejects(err);
+        }
+        resolve(results);
+      });
+    });
 
     // Send a success response
-    res.json({ message: "User deleted successfully" });
+    res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -352,23 +680,25 @@ const updatedUser = async (req, res) => {
   // Retrieve the user ID from the request parameters
   // const { id } = req.params;
   const { id } = req.user;
-  console.log(id);
 
   try {
     // Get user data from request body
-    console.log(req.body);
     const { firstname, lastname, email, mobile } = req.body;
 
     // Get a MySQL connection from the pool
-    const connection = await pool.getConnection();
 
-    // Execute an UPDATE query to update the user's information
-    const [result] = await connection.execute(
-      "UPDATE users SET firstname = ?, lastname = ?, email = ?, mobile = ? WHERE id = ?",
-      [firstname, lastname, email, mobile, id] // Use 'id' instead of '_id'
-    );
-
-    connection.release();
+    const result = await new Promise((resolve, rejects) => {
+      db.query(
+        "UPDATE users SET firstname = ?, lastname = ?, email = ?, mobile = ? WHERE id = ?",
+        [firstname, lastname, email, mobile, id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
 
     // Check if user was updated successfully
     if (result.affectedRows === 0) {
@@ -381,7 +711,9 @@ const updatedUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
+//////////////
+//////////////
+//////////////
 
 const saveAddress = async (req, res) => {
   // Retrieve the user ID from the request parameters
@@ -416,7 +748,6 @@ const saveAddress = async (req, res) => {
   }
 };
 
-
 const blockUser = async (req, res) => {
   // Retrieve the user ID from the request parameters
   const { id } = req.params;
@@ -444,7 +775,6 @@ const blockUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 const unblockUser = async (req, res) => {
   // Retrieve the user ID from the request parameters
@@ -600,6 +930,9 @@ const logout = async (req, res) => {
 //   return res.sendStatus(204); // No Content
 // });
 
+/////////////
+///////////////
+
 const updatePassword = asyncHandler(async (req, res) => {
   const { _id } = req.user;
   const { password } = req.body;
@@ -614,33 +947,52 @@ const updatePassword = asyncHandler(async (req, res) => {
   }
 });
 
-
-
 const forgotPasswordToken = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  
-  const connection = await pool.getConnection()
+
   try {
-    
     // Find the user by email
-    const [rows] = await connection.execute("SELECT * FROM users WHERE email = ?", [email]);
+
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM users WHERE email = ?",
+        [email],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
+
     const user = rows[0];
-    
+
     if (!user) {
       throw new Error("User not found with this email");
     }
-    
+
     // Generate a password reset token
-    const resetToken = crypto.createHash("sha256").update(Math.random().toString(36)).digest("hex");
-    console.log(resetToken);
-    
+    const resetToken = crypto
+      .createHash("sha256")
+      .update(Math.random().toString(36))
+      .digest("hex");
+
     // Update the user's password reset token in the database
-    await connection.execute(
-      "UPDATE users SET passwordResetToken = ?, passwordResetExpires = DATE_ADD(NOW(), INTERVAL 10 MINUTE) WHERE id = ?",
-      [resetToken, user.id]
-    );
-    
-    console.log("hii");
+
+    await new Promise((resolve, rejects) => {
+      db.query(
+        "UPDATE users SET passwordResetToken = ?, passwordResetExpires = DATE_ADD(NOW(), INTERVAL 10 MINUTE) WHERE id = ?",
+        [resetToken, user.id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
+
     // Send email with reset link
     const resetURL = `Hi, Please follow this link to reset Your Password. This link is valid till 10 minutes from now. <a href='http://localhost:3001/reset-password/${resetToken}'>Click Here</>`;
     const data = {
@@ -651,12 +1003,13 @@ const forgotPasswordToken = asyncHandler(async (req, res) => {
     };
     sendEmail(data);
 
-    res.status(200).json({ message: "Password reset token sent to your email" });
+    res
+      .status(200)
+      .json({ message: "Password reset token sent to your email" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
-
 
 const hashPassword = async (password) => {
   const saltRounds = 10; // Number of salt rounds for bcrypt
@@ -670,15 +1023,20 @@ const resetPassword = asyncHandler(async (req, res) => {
 
   try {
     // Hash the provided token
-    // const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-    // Find the user by hashed token and check token expiration
-    const connection = await pool.getConnection()
-
-    const [rows] = await connection.execute(
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(
         "SELECT * FROM users WHERE passwordResetToken = ? AND passwordResetExpires > NOW()",
-        [token]
+        [token],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
       );
+    });
+
     const user = rows[0];
 
     if (!user) {
@@ -689,10 +1047,19 @@ const resetPassword = asyncHandler(async (req, res) => {
     const hashedPassword = await hashPassword(password);
 
     // Update the user's password and reset token fields in the database
-    await connection.execute(
+
+    await new Promise((resolve, rejects) => {
+      db.query(
         "UPDATE users SET password = ?, passwordResetToken = NULL, passwordResetExpires = NULL WHERE id = ?",
-        [hashedPassword, user.id]
+        [hashedPassword, user.id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
       );
+    });
 
     res.status(200).json({ message: "Password reset successfully" });
   } catch (error) {
@@ -700,98 +1067,228 @@ const resetPassword = asyncHandler(async (req, res) => {
   }
 });
 
-
 const getWishlist = asyncHandler(async (req, res) => {
   const { id } = req.user;
 
   try {
-    const connection = await pool.getConnection();
-    const [rows] = await connection.execute(
-      "SELECT * FROM wishlist WHERE user_id = ?",
-      [id]
-    );
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM wishlist WHERE user_id = ?",
+        [id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
+
     if (rows.length === 0) {
-      connection.release();
       return res.status(204).json([{ message: "No Wishlist Found" }]);
     }
-    connection.release();
     res.status(201).json(rows);
   } catch (error) {
     throw new Error(error);
   }
 });
+// const getWishlist = asyncHandler(async (req, res) => {
+//   const { id } = req.user;
 
-
+//   try {
+//     const connection = await pool.getConnection();
+//     const [rows] = await connection.execute(
+//       "SELECT * FROM wishlist WHERE user_id = ?",
+//       [id]
+//     );
+//     if (rows.length === 0) {
+//       connection.release();
+//       return res.status(204).json([{ message: "No Wishlist Found" }]);
+//     }
+//     connection.release();
+//     res.status(201).json(rows);
+//   } catch (error) {
+//     throw new Error(error);
+//   }
+// });
 
 //add to cart
+
 const userCart = asyncHandler(async (req, res) => {
   const { size_color_quantity_id, quantity, product_total } = req.body;
   const { id } = req.user;
 
   try {
-    const connection = await pool.getConnection();
-    const [rows] = await connection.execute(
-      "SELECT * FROM cart WHERE user_id = ?",
-      [id]
-    );
+    const rows = await new Promise((resolve, rejects) => {
+      db.query("SELECT * FROM cart WHERE user_id = ?", [id], (err, results) => {
+        if (err) {
+          rejects(err);
+        }
+        resolve(results);
+      });
+    });
+
     if (rows.length === 0) {
-      await connection.execute("INSERT INTO cart (user_id) VALUES (?)", [id]);
+      await new Promise((resolve, rejects) => {
+        db.query(
+          "INSERT INTO cart (user_id) VALUES (?)",
+          [id],
+          (err, results) => {
+            if (err) {
+              rejects(err);
+            }
+            resolve(results);
+          }
+        );
+      });
     }
-    const [rows1] = await connection.execute(
-      "SELECT * FROM cart WHERE user_id = ?",
-      [id]
-    );
+
+    const rows1 = await new Promise((resolve, rejects) => {
+      db.query("SELECT * FROM cart WHERE user_id = ?", [id], (err, results) => {
+        if (err) {
+          rejects(err);
+        }
+        resolve(results);
+      });
+    });
+
     const cart_id = rows1[0].cart_id;
-    const [rows2] = await connection.execute(
-      "SELECT * FROM size_color_quantity WHERE size_color_quantity_id = ?",
-      [size_color_quantity_id]
-    );
+
+    const rows2 = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM size_color_quantity WHERE size_color_quantity_id = ?",
+        [size_color_quantity_id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
+
     let availableQuantity = rows2[0].quantity;
 
     if (availableQuantity < quantity) {
-      connection.release();
       return res.status(400).json({ message: "Not enough quantity available" });
     }
 
-    const [rows3] = await connection.execute(
-      "SELECT * FROM cart_items WHERE cart_id = ? AND size_color_quantity_id = ?",
-      [cart_id, size_color_quantity_id]
-    );
+    const rows3 = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM cart_items WHERE cart_id = ? AND size_color_quantity_id = ?",
+        [cart_id, size_color_quantity_id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
+
     if (rows3.length === 0) {
-      await connection.execute(
-        "INSERT INTO cart_items (cart_id, size_color_quantity_id, quantity, product_total) VALUES (?, ?, ?, ?)",
-        [cart_id, size_color_quantity_id, quantity, product_total]
-      );
+      await new Promise((resolve, rejects) => {
+        db.query(
+          "INSERT INTO cart_items (cart_id, size_color_quantity_id, quantity, product_total) VALUES (?, ?, ?, ?)",
+          [cart_id, size_color_quantity_id, quantity, product_total],
+          (err, results) => {
+            if (err) {
+              rejects(err);
+            }
+            resolve(results);
+          }
+        );
+      });
     } else {
-      await connection.execute(
-        "UPDATE cart_items SET quantity = ?, product_total= ? WHERE cart_id = ? AND size_color_quantity_id = ?",
-        [quantity, product_total, cart_id, size_color_quantity_id]
-      );
+      await new Promise((resolve, rejects) => {
+        db.query(
+          "UPDATE cart_items SET quantity = ?, product_total= ? WHERE cart_id = ? AND size_color_quantity_id = ?",
+          [quantity, product_total, cart_id, size_color_quantity_id],
+          (err, results) => {
+            if (err) {
+              rejects(err);
+            }
+            resolve(results);
+          }
+        );
+      });
     }
-    connection.release();
 
     res.status(200).json({ message: "Cart Data Received" });
   } catch (error) {
     throw new Error(error);
   }
 });
+// const userCart = asyncHandler(async (req, res) => {
+//   const { size_color_quantity_id, quantity, product_total } = req.body;
+//   const { id } = req.user;
 
+//   try {
+//     const connection = await pool.getConnection();
+//     const [rows] = await connection.execute(
+//       "SELECT * FROM cart WHERE user_id = ?",
+//       [id]
+//     );
+//     if (rows.length === 0) {
+//       await connection.execute("INSERT INTO cart (user_id) VALUES (?)", [id]);
+//     }
+//     const [rows1] = await connection.execute(
+//       "SELECT * FROM cart WHERE user_id = ?",
+//       [id]
+//     );
+//     const cart_id = rows1[0].cart_id;
+//     const [rows2] = await connection.execute(
+//       "SELECT * FROM size_color_quantity WHERE size_color_quantity_id = ?",
+//       [size_color_quantity_id]
+//     );
+//     let availableQuantity = rows2[0].quantity;
 
+//     if (availableQuantity < quantity) {
+//       connection.release();
+//       return res.status(400).json({ message: "Not enough quantity available" });
+//     }
+
+//     const [rows3] = await connection.execute(
+//       "SELECT * FROM cart_items WHERE cart_id = ? AND size_color_quantity_id = ?",
+//       [cart_id, size_color_quantity_id]
+//     );
+//     if (rows3.length === 0) {
+//       await connection.execute(
+//         "INSERT INTO cart_items (cart_id, size_color_quantity_id, quantity, product_total) VALUES (?, ?, ?, ?)",
+//         [cart_id, size_color_quantity_id, quantity, product_total]
+//       );
+//     } else {
+//       await connection.execute(
+//         "UPDATE cart_items SET quantity = ?, product_total= ? WHERE cart_id = ? AND size_color_quantity_id = ?",
+//         [quantity, product_total, cart_id, size_color_quantity_id]
+//       );
+//     }
+//     connection.release();
+
+//     res.status(200).json({ message: "Cart Data Received" });
+//   } catch (error) {
+//     throw new Error(error);
+//   }
+// });
 
 const getUserCart = asyncHandler(async (req, res) => {
   const { id } = req.user;
 
   try {
-    const connection = await pool.getConnection();
-
-    // Get cart and cart_items data in a single query
-    const [rows] = await connection.execute(
-      "SELECT c.*, ci.* FROM cart c LEFT JOIN cart_items ci ON c.cart_id = ci.cart_id WHERE c.user_id = ?",
-      [id]
-    );
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT c.*, ci.* FROM cart c LEFT JOIN cart_items ci ON c.cart_id = ci.cart_id WHERE c.user_id = ?",
+        [id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
 
     if (rows.length === 0) {
-      connection.release();
       return res.status(404).json({ message: "No Cart Found" });
     }
 
@@ -801,8 +1298,10 @@ const getUserCart = asyncHandler(async (req, res) => {
       if (row.size_color_quantity_id) {
         // add null check for size_color_quantity_id
         try {
-          const [productRows] = await connection.execute(
-            `SELECT p.*, scq.size_id, scq.color_code, scq.quantity as size_color_quantity, scq.unit_price, s.size_name, c.col_name, i.image_link
+          const productRows = await new Promise((resolve, rejects) => {
+            db.query(
+              `
+                SELECT p.*, scq.size_id, scq.color_code, scq.quantity as size_color_quantity, scq.unit_price, s.size_name, c.col_name, i.image_link
         FROM product p
         JOIN size_color_quantity scq ON p.p_id = scq.product_id
         JOIN size s ON s.size_id = scq.size_id
@@ -810,18 +1309,33 @@ const getUserCart = asyncHandler(async (req, res) => {
         JOIN image i ON i.product_id = p.p_id
         WHERE scq.size_color_quantity_id = ?
         `,
-            [row.size_color_quantity_id]
-          );
+              [row.size_color_quantity_id],
+              (err, results) => {
+                if (err) {
+                  rejects(err);
+                }
+                resolve(results);
+              }
+            );
+          });
 
           const availableQuantity = productRows[0].size_color_quantity;
           const cartQuantity = row.quantity;
 
           // Update cart quantity if it's greater than the available quantity
           if (cartQuantity > availableQuantity) {
-            await connection.execute(
-              "UPDATE cart_items SET quantity = ? WHERE cart_item_id = ?",
-              [availableQuantity, row.cart_item_id]
-            );
+            await new Promise((resolve, rejects) => {
+              db.query(
+                `UPDATE cart_items SET quantity = ? WHERE cart_item_id = ?`,
+                [availableQuantity, row.cart_item_id],
+                (err, results) => {
+                  if (err) {
+                    rejects(err);
+                  }
+                  resolve(results);
+                }
+              );
+            });
             row.quantity = availableQuantity;
           }
 
@@ -839,37 +1353,104 @@ const getUserCart = asyncHandler(async (req, res) => {
 
     const cartWithProductDetails = await Promise.all(productDetailsPromises);
 
-    connection.release();
     res.status(200).json(cartWithProductDetails.filter(Boolean)); // filter out null values
   } catch (error) {
     console.error(error);
     throw new Error(error);
   }
 });
+// const getUserCart = asyncHandler(async (req, res) => {
+//   const { id } = req.user;
 
+//   try {
+//     const connection = await pool.getConnection();
+
+//     // Get cart and cart_items data in a single query
+//     const [rows] = await connection.execute(
+//       "SELECT c.*, ci.* FROM cart c LEFT JOIN cart_items ci ON c.cart_id = ci.cart_id WHERE c.user_id = ?",
+//       [id]
+//     );
+
+//     if (rows.length === 0) {
+//       connection.release();
+//       return res.status(404).json({ message: "No Cart Found" });
+//     }
+
+//     let productDetailsPromises = [];
+//     for (let i = 0; i < rows.length; i++) {
+//       let row = rows[i];
+//       if (row.size_color_quantity_id) {
+//         // add null check for size_color_quantity_id
+//         try {
+//           const [productRows] = await connection.execute(
+//             `SELECT p.*, scq.size_id, scq.color_code, scq.quantity as size_color_quantity, scq.unit_price, s.size_name, c.col_name, i.image_link
+//         FROM product p
+//         JOIN size_color_quantity scq ON p.p_id = scq.product_id
+//         JOIN size s ON s.size_id = scq.size_id
+//         JOIN color c ON c.col_code = scq.color_code
+//         JOIN image i ON i.product_id = p.p_id
+//         WHERE scq.size_color_quantity_id = ?
+//         `,
+//             [row.size_color_quantity_id]
+//           );
+
+//           const availableQuantity = productRows[0].size_color_quantity;
+//           const cartQuantity = row.quantity;
+
+//           // Update cart quantity if it's greater than the available quantity
+//           if (cartQuantity > availableQuantity) {
+//             await connection.execute(
+//               "UPDATE cart_items SET quantity = ? WHERE cart_item_id = ?",
+//               [availableQuantity, row.cart_item_id]
+//             );
+//             row.quantity = availableQuantity;
+//           }
+
+//           productDetailsPromises.push({
+//             ...row,
+//             productDetails: productRows[0],
+//           });
+//         } catch (error) {
+//           console.error(error);
+//           // Handle the error appropriately, maybe by returning an empty object or null
+//           productDetailsPromises.push(null);
+//         }
+//       }
+//     }
+
+//     const cartWithProductDetails = await Promise.all(productDetailsPromises);
+
+//     connection.release();
+//     res.status(200).json(cartWithProductDetails.filter(Boolean)); // filter out null values
+//   } catch (error) {
+//     console.error(error);
+//     throw new Error(error);
+//   }
+// });
 
 const removeFromCartItem = asyncHandler(async (req, res) => {
   const { cartItemId } = req.params;
   const { id } = req.user;
   console.log(cartItemId);
   try {
-    const connection = await pool.getConnection();
     const sql = `DELETE FROM cart_items WHERE cart_item_id = ?`;
 
-    const [rows] = await connection.execute(sql, [cartItemId]);
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(sql, [cartItemId], (err, results) => {
+        if (err) {
+          rejects(err);
+        }
+        resolve(results);
+      });
+    });
 
-    console.log(rows);
     if (rows.length === 0) {
       res.status(400).json({ message: "Cart Item Not Found" });
-      connection.release();
     }
-    connection.release();
 
     res.status(200).json({ message: "Cart Item Removed" });
   } catch (error) {}
 });
-
-
 
 const applyCoupon = asyncHandler(async (req, res) => {
   const { coupon } = req.body;
@@ -896,7 +1477,6 @@ const applyCoupon = asyncHandler(async (req, res) => {
 });
 
 const createOrder = asyncHandler(async (req, res) => {
-  console.log("aawa");
   const {
     firstName,
     lastName,
@@ -944,255 +1524,205 @@ const createOrder = asyncHandler(async (req, res) => {
   const { id } = req.user;
   const orderStatus = "Processing";
 
-  const connection = await pool.getConnection();
-  await connection.beginTransaction();
   try {
+    
+    const order_rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "INSERT INTO orders (first_name, last_name, user_id, payment_method, email, mobile, order_status, message, shipping_apt_no, shipping_address, shipping_city, shipping_state, shipping_zip, shipping_country, billing_apt_no, billing_address, billing_city, billing_state, billing_zip, billing_country, total_amount) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [
+          firstName,
+          lastName,
+          id,
+          paymentMethod,
+          email,
+          mobile,
+          orderStatus,
+          message,
+          shippingAptNo,
+          shippingAddress,
+          shippingCity,
+          shippingState,
+          shippingZipcode,
+          shippingCountry,
+          billingAptNo,
+          billingAddress,
+          billingCity,
+          billingState,
+          billingZipcode,
+          billingCountry,
+          totalPrice,
+        ],
+        (err, results) => {
+          console.log(err);
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
 
-    const [order_rows] = await connection.execute(
-      "INSERT INTO orders (user_id, payment_method, email, mobile, order_status, message, shipping_apt_no, shipping_address, shipping_city, shipping_state, shipping_zip, shipping_country, billing_apt_no, billing_address, billing_city, billing_state, billing_zip, billing_country, total_amount) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-      [
-        id,
-        paymentMethod,
-        email,
-        mobile,
-        orderStatus,
-        message,
-        shippingAptNo,
-        shippingAddress,
-        shippingCity,
-        shippingState,
-        shippingZipcode,
-        shippingCountry,
-        billingAptNo,
-        billingAddress,
-        billingCity,
-        billingState,
-        billingZipcode,
-        billingCountry,
-        totalPrice,
-      ]
-    );
+    console.log("hello");
     console.log(order_rows.insertId);
 
-    const [rows] = await connection.execute(
-      "SELECT * FROM cart WHERE user_id = ?",
-      [id]
-    );
+    const rows = await new Promise((resolve, rejects) => {
+      db.query("SELECT * FROM cart WHERE user_id = ?", [id], (err, results) => {
+        if (err) {
+          rejects(err);
+        }
+        resolve(results);
+      });
+    });
+
     if (rows.length === 0) {
-      await connection.rollback();
-      connection.release();
       return res.status(404).json({ message: "No Cart Found" });
     }
     const cart_id = rows[0].cart_id;
 
-    const [rows1] = await connection.execute(
-      "SELECT * FROM cart_items WHERE cart_id = ?",
-      [cart_id]
-    );
+    const rows1 = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM cart_items WHERE cart_id = ?",
+        [cart_id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
+
     console.log(rows1);
 
     // wada
     if (rows1.length === 0) {
-      await connection.rollback();
-      connection.release();
       return res.status(404).json({ message: "No Cart Items Found" });
     }
 
-    //     const promises = rows1.map(async (item) => {
-    //       console.log(item.cart_item_id);
-    //       console.log(item.size_color_quantity_id);
-    //       console.log(item.quantity);
-
-    //       const [rows2] = await connection.execute(
-    //         "SELECT quantity FROM size_color_quantity WHERE size_color_quantity_id = ?",
-    //         [item.size_color_quantity_id]
-    //       );
-    //       console.log({"rows2": rows2});
-    //       let availableQuantity = rows2[0].quantity;
-
-    //       if (availableQuantity < item.quantity) {
-    //         await connection.rollback();
-    //         connection.release();
-    //         return res
-    //           .status(400)
-    //           .json({ message: "Not enough quantity available" });
-    //       }
-
-    //       let newavailableQuantity = availableQuantity - item.quantity;
-    //       const [rows3] = await connection.execute(
-    //         "UPDATE size_color_quantity SET quantity = ? WHERE size_color_quantity_id = ?",
-    //         [newavailableQuantity, item.size_color_quantity_id]
-    //       );
-    //       console.log({"rows3": rows3});
-
-    //       // remove item from cart item table
-    //       const [rows4] = await connection.execute(
-    //         "DELETE FROM cart_items WHERE cart_item_id = ?",
-    //         [item.cart_item_id]
-    //       );
-    //       console.log({"rows4": rows4});
-
-    // console.log(order_rows);
-
-    //       // add product to the orders_items table
-    //       const [rows5] = await connection.execute(
-    //         "INSERT INTO order_items (order_id, size_color_quantity_id, quantity) VALUES (?,?,?)",
-    //         [order_rows.insertId, item.size_color_quantity_id, item.quantity]
-    //       );
-    //       console.log({"rows5": rows5});
-    //       // update quantity in other customers' carts
-    //       const [rows6] = await connection.execute(
-    //         "UPDATE cart_items SET quantity = LEAST(quantity, ?) WHERE size_color_quantity_id = ?",
-    //         [newavailableQuantity, item.size_color_quantity_id]
-    //       );
-    //       console.log({"rows6": rows6});
-
-    //     });
-
-    // let promises = [];
-    // for (let i = 0; i < rows1.length; i++) {
-    //   let item = rows1[i];
-    //   console.log(item.cart_item_id);
-    //   console.log(item.size_color_quantity_id);
-    //   console.log(item.quantity);
-
-    //   const [rows2] = await connection.execute(
-    //     "SELECT quantity FROM size_color_quantity WHERE size_color_quantity_id = ?",
-    //     [item.size_color_quantity_id]
-    //   );
-    //   console.log({ rows2: rows2 });
-    //   let availableQuantity = rows2[0].quantity;
-
-    //   if (availableQuantity < item.quantity) {
-    //     await connection.rollback();
-    //     connection.release();
-    //     return res
-    //       .status(400)
-    //       .json({ message: "Not enough quantity available" });
-    //   }
-
-    //   let newavailableQuantity = availableQuantity - item.quantity;
-    //   const [rows3] = await connection.execute(
-    //     "UPDATE size_color_quantity SET quantity = ? WHERE size_color_quantity_id = ?",
-    //     [newavailableQuantity, item.size_color_quantity_id]
-    //   );
-    //   console.log({ rows3: rows3 });
-
-    //   // remove item from cart item table
-    //   const [rows4] = await connection.execute(
-    //     "DELETE FROM cart_items WHERE cart_item_id = ?",
-    //     [item.cart_item_id]
-    //   );
-    //   console.log({ rows4: rows4 });
-
-    //   console.log(order_rows);
-
-    //   // add product to the orders_items table
-    //   const [rows5] = await connection.execute(
-    //     "INSERT INTO order_items (order_id, size_color_quantity_id, quantity) VALUES (?,?,?)",
-    //     [order_rows.insertId, item.size_color_quantity_id, item.quantity]
-    //   );
-    //   console.log({ rows5: rows5 });
-    //   // update quantity in other customers' carts
-    //   const [rows6] = await connection.execute(
-    //     "UPDATE cart_items SET quantity = LEAST(quantity, ?) WHERE size_color_quantity_id = ?",
-    //     [newavailableQuantity, item.size_color_quantity_id]
-    //   );
-    //   console.log({ rows6: rows6 });
-    // }
-    
     for (let item of rows1) {
       console.log(item.cart_item_id);
       console.log(item.size_color_quantity_id);
       console.log(item.quantity);
-      
-      const [rows2] = await connection.execute(
-        "SELECT quantity FROM size_color_quantity WHERE size_color_quantity_id = ?",
-        [item.size_color_quantity_id]
-      );
-      console.log({ rows2: rows2 });
+
+      const rows2 = await new Promise((resolve, rejects) => {
+        db.query(
+          "SELECT quantity FROM size_color_quantity WHERE size_color_quantity_id = ?",
+          [item.size_color_quantity_id],
+          (err, results) => {
+            if (err) {
+              rejects(err);
+            }
+            resolve(results);
+          }
+        );
+      });
+
       let availableQuantity = rows2[0].quantity;
-      
+
       if (availableQuantity < item.quantity) {
-        await connection.rollback();
-        connection.release();
         return res
-        .status(400)
-        .json({ message: "Not enough quantity available" });
+          .status(400)
+          .json({ message: "Not enough quantity available" });
       }
-      
+
       let newavailableQuantity = availableQuantity - item.quantity;
-      const [rows3] = await connection.execute(
-        "UPDATE size_color_quantity SET quantity = ? WHERE size_color_quantity_id = ?",
-        [newavailableQuantity, item.size_color_quantity_id]
-      );
-      console.log({ rows3: rows3 });
-      
+
+      const rows3 = await new Promise((resolve, rejects) => {
+        db.query(
+          "UPDATE size_color_quantity SET quantity = ? WHERE size_color_quantity_id = ?",
+          [newavailableQuantity, item.size_color_quantity_id],
+          (err, results) => {
+            if (err) {
+              rejects(err);
+            }
+            resolve(results);
+          }
+        );
+      });
+
       // remove item from cart item table
-      const [rows4] = await connection.execute(
-        "DELETE FROM cart_items WHERE cart_item_id = ?",
-        [item.cart_item_id]
-      );
+
+      const rows4 = await new Promise((resolve, rejects) => {
+        db.query(
+          "DELETE FROM cart_items WHERE cart_item_id = ?",
+          [item.cart_item_id],
+          (err, results) => {
+            if (err) {
+              rejects(err);
+            }
+            resolve(results);
+          }
+        );
+      });
+
       console.log({ rows4: rows4 });
-      
+
       console.log(order_rows);
-      
+
       console.log(order_rows.insertId);
       console.log(item.size_color_quantity_id);
       console.log(item.quantity);
       // add product to the orders_items table
-      const [rows5] = await connection.execute(
-        "INSERT INTO order_items (order_id, size_color_quantity_id, quantity) VALUES (?,?,?)",
-        [order_rows.insertId, item.size_color_quantity_id, item.quantity]
-      );
+
+      const rows5 = await new Promise((resolve, rejects) => {
+        db.query(
+          "INSERT INTO order_items (order_id, size_color_quantity_id, quantity) VALUES (?,?,?)",
+          [order_rows.insertId, item.size_color_quantity_id, item.quantity],
+          (err, results) => {
+            if (err) {
+              rejects(err);
+            }
+            resolve(results);
+          }
+        );
+      });
+
       console.log({ rows5: rows5 });
       // update quantity in other customers' carts
-      const [rows6] = await connection.execute(
-        "UPDATE cart_items SET quantity = LEAST(quantity, ?) WHERE size_color_quantity_id = ?",
-        [newavailableQuantity, item.size_color_quantity_id]
-      );
+
+      const rows6 = await new Promise((resolve, rejects) => {
+        db.query(
+          "UPDATE cart_items SET quantity = LEAST(quantity, ?) WHERE size_color_quantity_id = ?",
+          [newavailableQuantity, item.size_color_quantity_id],
+          (err, results) => {
+            if (err) {
+              rejects(err);
+            }
+            resolve(results);
+          }
+        );
+      });
       console.log({ rows6: rows6 });
     }
 
-
-
-
     // await Promise.all(promises);
 
-    await connection.commit();
-    connection.release();
     res.status(201).json({ message: "Order created successfully" });
   } catch (error) {
-    console.log("jijiji");
-    if (connection) {
-      await connection
-        .rollback()
-        .catch(() => console.log("Error rolling back transaction"));
-      connection.release();
-    }
     // res.status(404).json(error)
     throw new Error(error);
   }
 });
-
 
 const createOrderCashier = asyncHandler(async (req, res) => {
   const { products } = req.body;
   const { id } = req.user;
   let salesIdForFront;
 
-  console.log(products);
   try {
-    const connection = await pool.getConnection();
+    const sales_rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "INSERT INTO sales (user_id) VALUES (?)",
+        [id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
 
-    // Begin transaction
-    await connection.beginTransaction();
-
-    // Insert into sales table
-    const [sales_rows] = await connection.execute(
-      "INSERT INTO sales (user_id) VALUES (?)",
-      [req.user.id]
-    );
     const sales_id = sales_rows.insertId;
     salesIdForFront = sales_id;
 
@@ -1201,14 +1731,23 @@ const createOrderCashier = asyncHandler(async (req, res) => {
       const { size_color_quantity_id, quantity } = product;
 
       // Check available quantity
-      const [rows] = await connection.execute(
-        "SELECT quantity FROM size_color_quantity WHERE size_color_quantity_id = ?",
-        [size_color_quantity_id]
-      );
+
+      const rows = await new Promise((resolve, rejects) => {
+        db.query(
+          "SELECT quantity FROM size_color_quantity WHERE size_color_quantity_id = ?",
+          [size_color_quantity_id],
+          (err, results) => {
+            if (err) {
+              rejects(err);
+            }
+            resolve(results);
+          }
+        );
+      });
+
       let availableQuantity = rows[0].quantity;
 
       if (availableQuantity < quantity) {
-        connection.release();
         return res
           .status(400)
           .json({ message: "Not enough quantity available" });
@@ -1216,31 +1755,54 @@ const createOrderCashier = asyncHandler(async (req, res) => {
 
       // Update quantity in size_color_quantity table
       let newavailableQuantity = availableQuantity - quantity;
-      const [rows2] = await connection.execute(
-        "UPDATE size_color_quantity SET quantity = ? WHERE size_color_quantity_id = ?",
-        [newavailableQuantity, size_color_quantity_id]
-      );
+
+      const rows2 = await new Promise((resolve, rejects) => {
+        db.query(
+          "UPDATE size_color_quantity SET quantity = ? WHERE size_color_quantity_id = ?",
+          [newavailableQuantity, size_color_quantity_id],
+          (err, results) => {
+            if (err) {
+              rejects(err);
+            }
+            resolve(results);
+          }
+        );
+      });
 
       // Insert into sales_items table
-      const [rows3] = await connection.execute(
-        "INSERT INTO sales_items (sales_id, size_color_quantity_id, quantity) VALUES (?,?,?)",
-        [sales_id, size_color_quantity_id, quantity]
-      );
+      const rows3 = await new Promise((resolve, rejects) => {
+        db.query(
+          "INSERT INTO sales_items (sales_id, size_color_quantity_id, quantity) VALUES (?,?,?)",
+          [sales_id, size_color_quantity_id, quantity],
+          (err, results) => {
+            if (err) {
+              rejects(err);
+            }
+            resolve(results);
+          }
+        );
+      });
     });
 
     await Promise.all(promises);
 
     // Commit transaction
-    await connection.commit();
 
-    const [rows4] = await connection.execute(
-      "SELECT * FROM sales WHERE sales_id = ?",
-      [salesIdForFront]
-    );
+    const row4 = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM sales WHERE sales_id = ?",
+        [salesIdForFront],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
     const salesOrder = rows4[0];
     console.log(salesOrder);
 
-    connection.release();
     res
       .status(201)
       .json({ message: "Order created successfully", salesOrder: salesOrder });
@@ -1269,20 +1831,33 @@ const printBillCashier = asyncHandler(async (req, res) => {
 });
 
 async function fetchOrderDetails(salesId) {
-  const [salesRows] = await pool.execute(
-    "SELECT * FROM sales WHERE sales_id = ?",
-    [salesId]
-  );
-  // console.log(salesRows);
+  const salesRows = await new Promise((resolve, rejects) => {
+    db.query(
+      "SELECT * FROM sales WHERE sales_id = ?",
+      [salesId],
+      (err, results) => {
+        if (err) {
+          rejects(err);
+        }
+        resolve(results);
+      }
+    );
+  });
 
   const sales = salesRows[0];
 
-  const [salesItemRows] = await pool.execute(
-    "SELECT size_color_quantity.*, size.size_name, color.col_name, product.p_title, sales_items.quantity FROM sales_items JOIN size_color_quantity ON sales_items.size_color_quantity_id = size_color_quantity.size_color_quantity_id JOIN size ON size_color_quantity.size_id = size.size_id JOIN color ON size_color_quantity.color_code = color.col_code JOIN product ON size_color_quantity.product_id = product.p_id WHERE sales_items.sales_id = ?",
-    [salesId]
-  );
-  // console.log("chuun");
-  // console.log(salesItemRows);
+  const salesItemRows = await new Promise((resolve, rejects) => {
+    db.query(
+      "SELECT size_color_quantity.*, size.size_name, color.col_name, product.p_title, sales_items.quantity FROM sales_items JOIN size_color_quantity ON sales_items.size_color_quantity_id = size_color_quantity.size_color_quantity_id JOIN size ON size_color_quantity.size_id = size.size_id JOIN color ON size_color_quantity.color_code = color.col_code JOIN product ON size_color_quantity.product_id = product.p_id WHERE sales_items.sales_id = ?",
+      [salesId],
+      (err, results) => {
+        if (err) {
+          rejects(err);
+        }
+        resolve(results);
+      }
+    );
+  });
 
   sales.items = salesItemRows.map((row) => {
     return {
@@ -1304,111 +1879,72 @@ async function fetchOrderDetails(salesId) {
 
   return sales;
 }
-// function pdfTemplate(sales) {
-//   const { sales_id, user_id, full_total_price } = sales;
 
-//   const tableBody = sales.items.map((item) => {
-//     return [
-//       { text: item.p_title, style: "tableHeader" },
-//       { text: item.size_name, style: "tableHeader" },
-//       { text: item.color_name, style: "tableHeader" },
-//       { text: item.quantity, style: "tableHeader" },
-//       { text: item.unit_price, style: "tableHeader" },
-//       { text: item.total_price, style: "tableHeader" },
-//     ];
-//   });
-
-//   return {
-//     content: [
-//       { text: "Sales Details", style: "header" },
-//       { text: `Total Price: ${full_total_price}`, style: "subheader" },
-//       {
-//         table: {
-//           widths: ["*", "*", "*", "*", "*", "*"],
-//           body: [
-//             [
-//               { text: "Product", style: "tableHeader" },
-//               { text: "Size", style: "tableHeader" },
-//               { text: "Color", style: "tableHeader" },
-//               { text: "Quantity", style: "tableHeader" },
-//               { text: "Unit Price", style: "tableHeader" },
-//               { text: "Total Price", style: "tableHeader" },
-//             ],
-//             ...tableBody,
-//           ],
-//         },
-//       },
-//     ],
-//     styles: {
-//       header: {
-//         fontSize: 18,
-//         bold: true,
-//         margin: [0, 0, 0, 10],
-//       },
-//       subheader: {
-//         fontSize: 14,
-//         bold: true,
-//         margin: [0, 10, 0, 5],
-//       },
-//       tableHeader: {
-//         bold: true,
-//         fontSize: 12,
-//         color: "black",
-//       },
-//     },
-//   };
-// }
-const getCashierSalesByCashierId = asyncHandler(async(req,res)=>{
-  const {id} = req.user;
-  console.log(id);
+const getCashierSalesByCashierId = asyncHandler(async (req, res) => {
+  const { id } = req.user;
   try {
-    const connection = await pool.getConnection();
-    const [rows] = await connection.execute("SELECT * FROM sales WHERE user_id = ?",[id]);
-    if(rows.length === 0){
-      connection.release();
-      return res.status(200).json({message: "No Sales Found"});
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM sales WHERE user_id = ?",
+        [id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
+
+    if (rows.length === 0) {
+      return res.status(200).json({ message: "No Sales Found" });
     }
-    connection.release();
     res.status(200).json(rows);
   } catch (error) {
     throw new Error(error);
   }
-})
+});
 
 const getOrders = asyncHandler(async (req, res) => {
-  
   try {
-    const connection = await pool.getConnection();
-
-    const [rows] = await connection.execute("SELECT * FROM orders");
-
+    const rows = await new Promise((resolve, rejects) => {
+      db.query("SELECT * FROM orders", (err, results) => {
+        if (err) {
+          rejects(err);
+        }
+        resolve(results);
+      });
+    });
     const orders = rows;
 
-    connection.release();
     res.status(200).json({ orders });
   } catch (error) {
     throw new Error(error);
   }
 });
 
-
-
 const getOrdersById = asyncHandler(async (req, res) => {
   const { id } = req.user;
-  console.log(id);
   try {
-    const connection = await pool.getConnection();
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM orders WHERE user_id = ?",
+        [id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
 
-    const [rows] = await connection.execute("SELECT * FROM orders WHERE user_id = ?",[id]);
-
-    if(rows.length===0){
-      connection.release();
+    if (rows.length === 0) {
       return res.status(200).json({ message: "No Orders Found" });
     }
 
     const orders = rows;
 
-    connection.release();
     res.status(200).json({ orders });
   } catch (error) {
     throw new Error(error);
@@ -1419,16 +1955,22 @@ const getOrderProducts = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
 
   try {
-    const connection = await pool.getConnection();
-
-    const [orderItems] = await connection.execute(
-      `SELECT oi.*, p.p_title, scq.unit_price 
-      FROM order_items oi
-       LEFT JOIN size_color_quantity scq ON oi.size_color_quantity_id = scq.size_color_quantity_id
-       LEFT JOIN product p ON scq.product_id = p.p_id
-       WHERE oi.order_id = ?`,
-      [orderId]
-    );
+    const orderItems = await new Promise((resolve, rejects) => {
+      db.query(
+        `SELECT oi.*, p.p_title, scq.unit_price 
+          FROM order_items oi
+           LEFT JOIN size_color_quantity scq ON oi.size_color_quantity_id = scq.size_color_quantity_id
+           LEFT JOIN product p ON scq.product_id = p.p_id
+           WHERE oi.order_id = ?`,
+        [orderId],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
 
     console.log(orderItems);
 
@@ -1438,55 +1980,11 @@ const getOrderProducts = asyncHandler(async (req, res) => {
     });
     console.log(orderItemsWithTotal);
 
-    connection.release();
-    
     res.status(200).json([orderItemsWithTotal]);
   } catch (error) {
     throw new Error(error);
   }
 });
-
-const getOrderByUserId1234 = asyncHandler(async (req, res) => {
-  const { userId } = req.params;
-
-  try {
-    const connection = await pool.getConnection();
-
-    const [orders] = await connection.execute(
-      `SELECT o.*, oi.size_color_quantity_id, oi.quantity, p.p_title, scq.unit_price
-       FROM orders o
-       LEFT JOIN order_items oi ON o.order_id = oi.order_id
-       LEFT JOIN size_color_quantity scq ON oi.size_color_quantity_id = scq.size_color_quantity_id
-       LEFT JOIN product p ON scq.product_id = p.p_id
-       WHERE o.user_id = ?
-       ORDER BY o.created_at DESC`,
-      [userId]
-    );
-
-    const ordersWithTotals = orders.map((order) => {
-      const orderItems = order.order_items.map((item) => {
-        const total = item.unit_price * item.quantity;
-        return { ...item, total };
-      });
-
-      const orderTotal = orderItems.reduce((acc, item) => acc + item.total, 0);
-
-      return {
-        ...order,
-        order_items: orderItems,
-        total: orderTotal,
-        created_at: moment(order.created_at).format('MMMM Do YYYY, h:mm:ss a')
-      };
-    });
-
-    connection.release();
-    res.status(200).json(ordersWithTotals);
-  } catch (error) {
-    throw new Error(error);
-  }
-});
-
-
 
 const getAOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -1514,54 +2012,57 @@ const getAOrder = asyncHandler(async (req, res) => {
   }
 });
 
-
-
-
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
   try {
-    const connection = await pool.getConnection();
-
-    const [rows] = await connection.execute(
-      "UPDATE orders SET order_status = ? WHERE order_id = ?",
-      [status, id]
-    );
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "UPDATE orders SET order_status = ? WHERE order_id = ?",
+        [status, id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
 
     if (rows.affectedRows === 0) {
-      connection.release();
       return res.status(404).json({ message: "Order not found" });
     }
 
-    connection.release();
     res.status(200).json({ message: "Order status updated successfully" });
   } catch (error) {
     throw new Error(error);
   }
 });
 
-const updateRole = asyncHandler(async (req,res)=>{
-
-  const {selectedRole, userId} = req.body;
+const updateRole = asyncHandler(async (req, res) => {
+  const { selectedRole, userId } = req.body;
   console.log(req.body);
 
   try {
-    const connection = await pool.getConnection();
+    const updateEnq = await new Promise((resolve, rejects) => {
+      db.query(
+        "UPDATE users SET role = ? WHERE id = ?",
+        [selectedRole, userId],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
 
-    const updateEnqSQL = 'UPDATE users SET role = ? WHERE id = ?';
-    const [updateEnq] = await connection.execute(updateEnqSQL, [selectedRole, userId]);
     res.status(201).json(updateEnq);
   } catch (error) {
     res.status(401).json({ message: error.message });
   }
-  finally{
-    await connection.release()
-  }
-  })
-  
-
-
+});
 
 module.exports = {
   createUser,
@@ -1593,5 +2094,5 @@ module.exports = {
   getOrderProducts,
   getOrdersById,
   updateRole,
-  getCashierSalesByCashierId
+  getCashierSalesByCashierId,
 };

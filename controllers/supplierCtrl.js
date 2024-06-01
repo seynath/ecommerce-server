@@ -1,5 +1,5 @@
 const asyncHandler = require("express-async-handler");
-const { pool } = require("../config/db");
+const { db } = require("../config/db");
 
 const createSupplier = asyncHandler(async (req, res) => {
   const {
@@ -11,31 +11,58 @@ const createSupplier = asyncHandler(async (req, res) => {
   } = req.body;
   console.log(req.body);
   try {
-    const connection = await pool.getConnection();
+
 
     // Begin transaction
-    await connection.beginTransaction();
 
     // Check if supplier already exists
+
     const checkSupplierQuery = "SELECT * FROM supplier WHERE supplier_name = ?";
-    const [checkSupplierResult] = await connection.execute(checkSupplierQuery, [
-      supplierName,
-    ]);
+
+    const checkSupplierResult = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          checkSupplierQuery,
+          [supplierName],
+
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+        )
+    
 
     if (checkSupplierResult.length > 0) {
       // Rollback transaction
-      await connection.rollback();
-      connection.release();
+   
       return res.status(400).json({ message: "Supplier already exists" });
     }
 
     // Insert new supplier
     const insertSupplierQuery =
       "INSERT INTO supplier (supplier_name, supplier_email, supplier_phone, supplier_address) VALUES (?, ?, ?, ?)";
-    const [insertSupplierResult] = await connection.execute(
-      insertSupplierQuery,
-      [supplierName, supplierEmail, supplierPhone, supplierAddress]
+
+    const insertSupplierResult = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          insertSupplierQuery,
+          [supplierName, supplierEmail, supplierPhone, supplierAddress],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
     );
+
 
     const newSupplierId = insertSupplierResult.insertId;
 
@@ -43,15 +70,27 @@ const createSupplier = asyncHandler(async (req, res) => {
     const associateProductsQuery =
       "INSERT INTO supplier_products (product_id, supplier_id) VALUES (?, ?)";
     for (let productId of productIds) {
-      await connection.execute(associateProductsQuery, [
-        productId,
-        newSupplierId,
-      ]);
+
+      await new Promise(
+        (resolve, reject) => {
+          db.query(
+            associateProductsQuery,
+            [productId, newSupplierId],
+            (error, results) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(results);
+              }
+            }
+          );
+        }
+      )
+   
     }
 
     // Commit transaction
-    await connection.commit();
-    connection.release();
+  
     return res.status(201).json({
       message: "Supplier created and associated with products",
       supplierId: newSupplierId,
@@ -63,13 +102,25 @@ const createSupplier = asyncHandler(async (req, res) => {
 
 const getAllSuppliers = asyncHandler(async (req, res) => {
   try {
-    const connection = await pool.getConnection();
 
     // Get all suppliers
     const getSuppliersQuery = "SELECT * FROM supplier";
-    const [suppliersResult] = await connection.execute(getSuppliersQuery);
 
-    connection.release();
+    const suppliersResult = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          getSuppliersQuery,
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    )
+
     return res.json(suppliersResult);
   } catch (error) {
     throw new Error(error);
@@ -176,16 +227,25 @@ const getSupplier = asyncHandler(async(req,res)=>{
   const {supplierId} = req.params;
 
   try {
-    const connection = await pool.getConnection();
 
-    const [rows] = await connection.execute(
-      `
-      SELECT *
-      FROM supplier 
-      WHERE supplier.supplier_id = ?
-      `, [supplierId]
-    );
-    connection.release();
+
+
+    const rows = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          "SELECT * FROM supplier WHERE supplier.supplier_id = ?",
+          [supplierId],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    )
+   
     res.status(200).json(rows);
   } catch (error) {
     res.status(401).json({ message: error.message });
@@ -196,7 +256,6 @@ const getASupplier = asyncHandler(async (req, res) => {
   const { supplierId } = req.params;
 
   try {
-    const connection = await pool.getConnection();
 
     const getSupplierQuerys = `
     SELECT
@@ -234,8 +293,23 @@ const getASupplier = asyncHandler(async (req, res) => {
     supplier.supplier_id = ?;
       `;
 
-    const [supplierResult] = await connection.execute(getSupplierQuerys, [supplierId]);
 
+      const supplierResult = await new Promise(
+        (resolve, reject) => {
+          db.query(
+            getSupplierQuerys,
+            [supplierId],
+            (error, results) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(results);
+              }
+            }
+          );
+        }
+      )
+  
     // Group the images by the product_id using the reduce function
     const groupedResult = supplierResult.reduce((acc, curr) => {
       const { supplier_products_id, ...rest } = curr;
@@ -250,7 +324,6 @@ const getASupplier = asyncHandler(async (req, res) => {
     // Convert the object into an array
     const finalResult = Object.values(groupedResult);
 
-    connection.release();
     return res.status(200).json(finalResult);
   } catch (error) {
     throw new Error(error);
@@ -259,20 +332,30 @@ const getASupplier = asyncHandler(async (req, res) => {
 
 
 const deleteProductFromSupplierByID = asyncHandler(async(req,res) =>{
-  console.log(req.body);
   const {productId, supplierId} = req.body;
-  // const {productId} = req.params.productId;
   console.log(supplierId);
   console.log(productId);
 
 
   try {
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
     const deleteProductQuery = "DELETE FROM supplier_products WHERE supplier_id = ? AND product_id = ?";
-    await connection.execute(deleteProductQuery, [supplierId, productId]);
-    await connection.commit();
-    connection.release();
+
+    await new Promise(
+      (resolve, reject) => {
+        db.query(
+          deleteProductQuery,
+          [supplierId, productId],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    )
+ 
     return res.status(200).json({message: "Product deleted from supplier"});
   } catch (error) {
     throw new Error(error);
@@ -283,27 +366,69 @@ const updateSupplierByProduct = asyncHandler(async (req,res)=>{
 
 
   const {supplier_id, supplier_name, supplier_email, supplier_phone, supplier_address} = req.body.supplierDetails;
-  console.log("awa");
   const productIds = req.body.productIds;
 
   try {
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
+   
     const updateSupplierQuery = "UPDATE supplier SET supplier_name = ?, supplier_email = ?, supplier_phone = ?, supplier_address = ? WHERE supplier_id = ?";
-    await connection.execute(updateSupplierQuery, [supplier_name, supplier_email, supplier_phone, supplier_address, supplier_id]);
+  
+    await new Promise(
+      (resolve, reject) => {
+        db.query(
+          updateSupplierQuery,
+          [supplier_name, supplier_email, supplier_phone, supplier_address, supplier_id],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    )
 
     const deleteAssociationsQuery = "DELETE FROM supplier_products WHERE supplier_id = ?";
-    await connection.execute(deleteAssociationsQuery, [supplier_id]);
+
+    await new Promise(
+      (resolve, reject) => {
+        db.query(
+          deleteAssociationsQuery,
+          [supplier_id],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    )
 
 
 
     const associateProductsQuery = "INSERT INTO supplier_products (product_id, supplier_id) VALUES (?, ?)";
     for (let productId of productIds) {
-      await connection.execute(associateProductsQuery, [productId, supplier_id]);
+
+      await new Promise(
+        (resolve, reject) => {
+          db.query(
+            associateProductsQuery,
+            [productId, supplier_id],
+            (error, results) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(results);
+              }
+            }
+          );
+        }
+      )
     }
 
-    await connection.commit();
-    connection.release();
+   
     return res.status(200).json({message: "Supplier updated and associated with products"});
   } catch (error) {
     throw new Error(error);
@@ -313,7 +438,8 @@ const updateSupplierByProduct = asyncHandler(async (req,res)=>{
 const getProductsFromSupplierId = asyncHandler(async (req,res) =>{
   const {supplierId} = req.params;
   try {
-    const connection = await pool.getConnection();
+
+
     const getProductsQuery = `
     SELECT
     supplier_products.supplier_products_id,
@@ -349,7 +475,22 @@ const getProductsFromSupplierId = asyncHandler(async (req,res) =>{
   WHERE
     supplier.supplier_id = ?;
       `;
-    const [productsResult] = await connection.execute(getProductsQuery, [supplierId]);
+
+      const productsResult = await new Promise(
+        (resolve, reject) => {
+          db.query(
+            getProductsQuery,
+            [supplierId],
+            (error, results) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(results);
+              }
+            }
+          );
+        }
+      )
     const uniqueProducts = productsResult.reduce((acc, product) => {
       // Find this product in the accumulator array
       const existingProduct = acc.find(p => p.p_id === product.p_id);
@@ -379,7 +520,6 @@ const getProductsFromSupplierId = asyncHandler(async (req,res) =>{
       return acc;
     }, []);
     
-    connection.release();
     return res.status(200).json(uniqueProducts);
   } catch (error) {
     throw new Error(error);
@@ -389,19 +529,31 @@ const getProductsFromSupplierId = asyncHandler(async (req,res) =>{
 const getSupplierbyDetails = asyncHandler(async (req,res) => {
   const {id} = req.params;
   try {
-    const connection = await pool.getConnection();
-    const [rows] = await connection.execute(
-      `
-      SELECT 
-      s.*,
-      sp.product_id
-      FROM supplier s
-      LEFT JOIN supplier_product sp ON s.supplier_id = sp.supplier_id
-      WHERE s.supplier_id = ?
-      `, [id]
-    );
-    connection.release();
-    res.json(rows);
+
+    const rows = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          `
+          SELECT 
+          s.*,
+          sp.product_id
+          FROM supplier s
+          LEFT JOIN supplier_product sp ON s.supplier_id = sp.supplier_id
+          WHERE s.supplier_id = ?
+          `,
+          [id],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    )
+
+    res.status(200).json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

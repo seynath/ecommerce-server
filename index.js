@@ -16,6 +16,17 @@ const colorRouter = require("./routes/colorRoute");
 const enqRouter = require("./routes/enqRoute");
 const sizeRoute = require("./routes/sizeRoute")
 const supplierRouter = require("./routes/supplierRoute")
+const reportRoute = require("./routes/reportRoute")
+const cashierRoute = require("./routes/cashierRoute")
+const {db} = require("./config/db")
+
+db.connect((err)=>{
+  if(err){
+    console.log(err);
+  }else{
+    console.log("Connected to the database");
+  }
+})
 
 app.use(morgan("dev"));
 app.use(cors());
@@ -31,19 +42,26 @@ app.use("/api/color", colorRouter);
 app.use("/api/enquiry", enqRouter);
 app.use("/api/size", sizeRoute);
 app.use('/api/supplier',supplierRouter);
+app.use('/api/report',reportRoute);
+app.use('/api/cashier', cashierRoute)
 
 app.use(notFound);
 app.use(errorHandler);
 
-checkConnection()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error('Error starting the server:', err);
-  });
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+}
+);
+
+// checkConnection()
+//   .then(() => {
+//     app.listen(PORT, () => {
+//       console.log(`Server is running on port ${PORT}`);
+//     });
+//   })
+//   .catch((err) => {
+//     console.error('Error starting the server:', err);
+//   });
 
 
 

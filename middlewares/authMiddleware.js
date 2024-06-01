@@ -1,7 +1,7 @@
 const mysql = require('mysql2');
 const asyncHandler = require('express-async-handler');
 const jwt = require('jsonwebtoken');
-const {pool} = require('../config/db');
+const {pool, db} = require('../config/db');
 require("dotenv").config();
 
 
@@ -23,12 +23,25 @@ const authMiddleware = asyncHandler(async (req, res, next) => {
         //   console.log('Decoded token:', decodedToken); // Log the decoded token
 
           // Continue with the authentication process
-          const connection = await pool.getConnection();
-
-          const [rows] = await connection.execute('SELECT * FROM users WHERE id = ?', [decodedToken.id]);
 
 
-          connection.release();
+          const rows = await new Promise(
+            (resolve, reject) => {
+                db.query(
+                    'SELECT * FROM users WHERE id = ?',
+                    [decodedToken.id],
+                    (error, results) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(results);
+                    }
+                    }
+                );
+                }
+                
+          )
+      
           const user = rows[0];
           if (!user) {
               throw new Error('Not Authorized, Token Failed1');
@@ -51,10 +64,24 @@ const isAdmin = asyncHandler(async (req, res, next) => {
     const { email } = req.user;
     try {
       
-        const connection = await pool.getConnection();
-        
-        const [rows] = await connection.execute('SELECT * FROM users WHERE email = ?', [email]);
-        connection.release();
+
+        const rows = await new Promise(
+            (resolve, reject) => {
+                db.query(
+                    'SELECT * FROM users WHERE email = ?',
+                    [email],
+                    (error, results) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(results);
+                    }
+                    }
+                );
+                }
+
+        )
+    
         const user = rows[0];
         if (!user || user.role !== 'admin') {
             throw new Error('Not Authorized, Admin Only');
@@ -68,10 +95,22 @@ const isCashier = asyncHandler(async (req, res, next) => {
     const { email } = req.user;
     try {
       
-        const connection = await pool.getConnection();
-        
-        const [rows] = await connection.execute('SELECT * FROM users WHERE email = ?', [email]);
-        connection.release();
+        const rows = await new Promise(
+            (resolve, reject) => {
+                db.query(
+                    'SELECT * FROM users WHERE email = ?',
+                    [email],
+                    (error, results) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(results);
+                    }
+                    }
+                );
+                }
+        )
+     
         const user = rows[0];
         if (!user || user.role !== 'cashier') {
             throw new Error('Not Authorized, Cahier Only');

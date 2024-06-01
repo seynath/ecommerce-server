@@ -1,5 +1,5 @@
 const asyncHandler = require("express-async-handler");
-const {pool} = require("../config/db")
+const {db} = require("../config/db")
 
 
 const createEnquiry = asyncHandler(async (req, res) => {

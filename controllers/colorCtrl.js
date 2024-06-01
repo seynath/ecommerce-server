@@ -1,5 +1,5 @@
 const asyncHandler = require("express-async-handler");
-const { pool } = require("../config/db");
+const { db } = require("../config/db");
 
 
 const createColor = asyncHandler(async (req, res) => {
@@ -7,28 +7,70 @@ const createColor = asyncHandler(async (req, res) => {
   const colorCode = req.body.code;
 
   try {
-    const connection = await pool.getConnection();
+
 
     const sql = "SELECT * FROM color WHERE col_code = ?";
-    const [existingColor] = await connection.execute(sql, [colorCode]);
+    const existingColor = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          sql,
+          [colorCode],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    );
+    
 
     if (existingColor.length > 0) {
-      connection.release();
       return res.status(400).json({ message: "Color code already exists" });
     }
 
     const insertColorQuery = "INSERT INTO color (col_code, col_name) VALUES (?, ?)";
-    const [insertResult] = await connection.execute(insertColorQuery, [
-      colorCode, colorName
-    ]);
 
+    const insertResult = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          insertColorQuery,
+          [colorCode, colorName],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    );
+
+   
     const colorId = insertResult.insertId;
     console.log(colorId);
     const getColorQuery = "SELECT * FROM color WHERE col_code = ?";
-    const [colorRows] = await connection.execute(getColorQuery, [colorCode]);
+
+    const colorRows =  await new Promise(
+      (resolve, reject) => {
+        db.query(
+          getColorQuery,
+          [colorCode],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    );
     const newColor = colorRows[0];
 
-    connection.release();
     return res.status(200).json(newColor);
 
   } catch (error) {
@@ -49,6 +91,7 @@ const updateColor = asyncHandler(async (req, res) => {
     throw new Error(error);
   }
 });
+
 const deleteColor = asyncHandler(async (req, res) => {
   const { id } = req.params;
   validateMongoDbId(id);
@@ -59,6 +102,7 @@ const deleteColor = asyncHandler(async (req, res) => {
     throw new Error(error);
   }
 });
+
 const getColor = asyncHandler(async (req, res) => {
   const { id } = req.params;
   validateMongoDbId(id);
@@ -72,10 +116,23 @@ const getColor = asyncHandler(async (req, res) => {
 
 const getallColor = asyncHandler(async (req, res) => {
   try {
-    const connection = await pool.getConnection();
     const sql = "SELECT * FROM color";
-    const [colors] = await connection.execute(sql);
-    connection.release();
+
+    const colors = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          sql,
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    );
+    
     res.status(200).json(colors);
   } catch (error) {
     throw new Error(error);
