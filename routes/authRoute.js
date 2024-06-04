@@ -20,7 +20,7 @@ const {
   getUserCart,
   removeFromCartItem,
   applyCoupon,
-  createOrder,
+  // createOrder,
   getOrders,
   updateOrderStatus,
   loginCashier,
@@ -49,7 +49,7 @@ router.post("/cashier-login", loginCashier);
 
 router.post("/cart",authMiddleware,userCart);
 router.post("/cart/applycoupon",authMiddleware,applyCoupon);
-router.post("/cart/create",authMiddleware,createOrder);
+// router.post("/cart/create",authMiddleware,createOrder);
 router.post("/sales/create", authMiddleware, createOrderCashier)
 router.get("/print/bill/:salesOrderId", printBillCashier)
 router.get("/logout",logout);

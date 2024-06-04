@@ -105,12 +105,110 @@ const getallSize  = asyncHandler ( async (req,res) =>{
   }
 })
 
+const updateSize = asyncHandler(
+  async (req, res) => {
+    console.log("id,size");
+    const {id,size} = req.body;
+  
+    try {
+      const updateSizeQuery = "UPDATE size SET size_name = ? WHERE size_id = ?";
+  
+      const updatedSize = await new Promise(
+        (resolve, reject) => {
+          db.query(
+            updateSizeQuery,
+            [size, id],
+            (error, results) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(results);
+              }
+            }
+          );
+        }
+      );
+  
+      if (updatedSize.affectedRows === 0) {
+        res.status(400);
+        throw new Error("Size not updated");
+      }
+  
+      res.status(201).json(updatedSize);
+    } catch (error) {
+      throw new Error(error);
+    }
+  }
+);
 
+
+
+const deleteSize = asyncHandler(async(req,res)=>{
+  const { id } = req.params;
+  console.log(id);
+  try {
+    const deleteSizeSQL = 'DELETE FROM size WHERE size_id = ?';
+
+    const deletedSize = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          deleteSizeSQL,
+          [id],
+          (err, result) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(result);
+            }
+          }
+        );
+      }
+    );
+    
+    if(deletedSize.length === 0){
+      res.status(400);
+      throw new Error('Size not deleted');
+    }
+
+    res.status(201).json(deletedSize);
+  } catch (error) {
+    throw new Error(error);
+  }
+})
+
+const getSize = asyncHandler(async (req,res)=>{
+  const { id } = req.params;
+  try{
+    const sql = "SELECT * FROM size WHERE size_id = ?";
+    const size = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          sql,
+          [id],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    );
+    res.status(200).json(size);
+  }
+  catch(err){
+    throw new Error(err)
+  }
+})
 
 
 
 
 module.exports = {
   createSize,
-  getallSize
+  getallSize,
+  deleteSize,
+  updateSize,
+  getSize
   };

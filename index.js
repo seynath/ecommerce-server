@@ -18,6 +18,8 @@ const sizeRoute = require("./routes/sizeRoute")
 const supplierRouter = require("./routes/supplierRoute")
 const reportRoute = require("./routes/reportRoute")
 const cashierRoute = require("./routes/cashierRoute")
+const orderRoute = require("./routes/orderRoute")
+const chartRoute = require("./routes/chartRoute")
 const {db} = require("./config/db")
 
 db.connect((err)=>{
@@ -44,7 +46,8 @@ app.use("/api/size", sizeRoute);
 app.use('/api/supplier',supplierRouter);
 app.use('/api/report',reportRoute);
 app.use('/api/cashier', cashierRoute)
-
+app.use('/api/order', orderRoute)
+app.use("/api/chart" , chartRoute )
 app.use(notFound);
 app.use(errorHandler);
 

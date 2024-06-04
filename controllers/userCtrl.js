@@ -23,6 +23,7 @@ const createUser = asyncHandler(async (req, res) => {
 
     // Check if user with the given email already exists
 
+    
     const existingUsers = await new Promise((resolve, rejects) => {
       db.query("SELECT * FROM users WHERE email = ?", [email], (err, rows) => {
         if (err) {
@@ -31,16 +32,15 @@ const createUser = asyncHandler(async (req, res) => {
         resolve(rows);
       });
     });
-
-    if (existingUsers.length > 0) {
-      connection.release();
+    
+    if (existingUsers.length == 0) {
       return res.status(400).json({ message: "User Already Exists" });
     }
-
+    
     const hashedPassword = await bcrypt.hash(password, saltRounds);
-
+    
     // Create a new user
-
+    
     const result = await new Promise((resolve, rejects) => {
       db.query(
         "INSERT INTO users (firstname, lastname, email, mobile, password, role) VALUES (?, ?, ?, ?, ?, ?)",
@@ -53,14 +53,16 @@ const createUser = asyncHandler(async (req, res) => {
         }
       );
     });
-
+    console.log(result);
+    
     // Create an empty cart for the new user
-
+    
     await new Promise((resolve, rejects) => {
       db.query(
         "INSERT INTO cart (user_id) VALUES (?)",
-        [result[0].insertId],
+        [result.insertId],
         (err, rows) => {
+          console.log(err);
           if (err) {
             rejects(err);
           }
@@ -68,6 +70,7 @@ const createUser = asyncHandler(async (req, res) => {
         }
       );
     });
+    console.log("hihi");
 
     res.status(201).json({
       message: "User created successfully",
@@ -1476,233 +1479,267 @@ const applyCoupon = asyncHandler(async (req, res) => {
   res.json(totalAfterDiscount);
 });
 
-const createOrder = asyncHandler(async (req, res) => {
-  const {
-    firstName,
-    lastName,
-    email,
-    mobile,
-    shippingAptNo,
-    shippingAddress,
-    shippingCity,
-    shippingState,
-    shippingZipcode,
-    shippingCountry,
-    billingAptNo,
-    billingAddress,
-    billingCity,
-    billingState,
-    billingZipcode,
-    billingCountry,
-    paymentMethod,
-    message,
-    totalPrice,
-  } = req.body;
+// const createOrder = asyncHandler(async (req, res) => {
+//   const {
+//     firstName,
+//     lastName,
+//     email,
+//     mobile,
+//     shippingAptNo,
+//     shippingAddress,
+//     shippingCity,
+//     shippingState,
+//     shippingZipcode,
+//     shippingCountry,
+//     billingAptNo,
+//     billingAddress,
+//     billingCity,
+//     billingState,
+//     billingZipcode,
+//     billingCountry,
+//     paymentMethod,
+//     message,
+//     totalPrice,
+//   } = req.body;
 
-  console.log(
-    firstName,
-    lastName,
-    email,
-    mobile,
-    shippingAptNo,
-    shippingAddress,
-    shippingCity,
-    shippingState,
-    shippingZipcode,
-    shippingCountry,
-    billingAptNo,
-    billingAddress,
-    billingCity,
-    billingState,
-    billingZipcode,
-    billingCountry,
-    paymentMethod,
-    message,
-    totalPrice
-  );
+//   console.log(
+//     firstName,
+//     lastName,
+//     email,
+//     mobile,
+//     shippingAptNo,
+//     shippingAddress,
+//     shippingCity,
+//     shippingState,
+//     shippingZipcode,
+//     shippingCountry,
+//     billingAptNo,
+//     billingAddress,
+//     billingCity,
+//     billingState,
+//     billingZipcode,
+//     billingCountry,
+//     paymentMethod,
+//     message,
+//     totalPrice
+//   );
 
-  const { id } = req.user;
-  const orderStatus = "Processing";
+//   const { id } = req.user;
+//   const orderStatus = "Processing";
 
-  try {
+//   try {
     
-    const order_rows = await new Promise((resolve, rejects) => {
-      db.query(
-        "INSERT INTO orders (first_name, last_name, user_id, payment_method, email, mobile, order_status, message, shipping_apt_no, shipping_address, shipping_city, shipping_state, shipping_zip, shipping_country, billing_apt_no, billing_address, billing_city, billing_state, billing_zip, billing_country, total_amount) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        [
-          firstName,
-          lastName,
-          id,
-          paymentMethod,
-          email,
-          mobile,
-          orderStatus,
-          message,
-          shippingAptNo,
-          shippingAddress,
-          shippingCity,
-          shippingState,
-          shippingZipcode,
-          shippingCountry,
-          billingAptNo,
-          billingAddress,
-          billingCity,
-          billingState,
-          billingZipcode,
-          billingCountry,
-          totalPrice,
-        ],
-        (err, results) => {
-          console.log(err);
-          if (err) {
-            rejects(err);
-          }
-          resolve(results);
-        }
-      );
-    });
+//     const order_rows = await new Promise((resolve, rejects) => {
+//       db.query(
+//         "INSERT INTO orders (first_name, last_name, user_id, payment_method, email, mobile, order_status, message, shipping_apt_no, shipping_address, shipping_city, shipping_state, shipping_zip, shipping_country, billing_apt_no, billing_address, billing_city, billing_state, billing_zip, billing_country, total_amount) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+//         [
+//           firstName,
+//           lastName,
+//           id,
+//           paymentMethod,
+//           email,
+//           mobile,
+//           orderStatus,
+//           message,
+//           shippingAptNo,
+//           shippingAddress,
+//           shippingCity,
+//           shippingState,
+//           shippingZipcode,
+//           shippingCountry,
+//           billingAptNo,
+//           billingAddress,
+//           billingCity,
+//           billingState,
+//           billingZipcode,
+//           billingCountry,
+//           totalPrice,
+//         ],
+//         (err, results) => {
+//           console.log(err);
+//           if (err) {
+//             rejects(err);
+//           }
+//           resolve(results);
+//         }
+//       );
+//     });
 
-    console.log("hello");
-    console.log(order_rows.insertId);
+ 
+//     const rows = await new Promise((resolve, rejects) => {
+//       db.query("SELECT * FROM cart WHERE user_id = ?", [id], (err, results) => {
+//         if (err) {
+//           rejects(err);
+//         }
+//         resolve(results);
+//       });
+//     });
 
-    const rows = await new Promise((resolve, rejects) => {
-      db.query("SELECT * FROM cart WHERE user_id = ?", [id], (err, results) => {
-        if (err) {
-          rejects(err);
-        }
-        resolve(results);
-      });
-    });
+//     if (rows.length === 0) {
+//       return res.status(404).json({ message: "No Cart Found" });
+//     }
+//     const cart_id = rows[0].cart_id;
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "No Cart Found" });
-    }
-    const cart_id = rows[0].cart_id;
+//     const rows1 = await new Promise((resolve, rejects) => {
+//       db.query(
+//         "SELECT * FROM cart_items WHERE cart_id = ?",
+//         [cart_id],
+//         (err, results) => {
+//           if (err) {
+//             rejects(err);
+//           }
+//           resolve(results);
+//         }
+//       );
+//     });
 
-    const rows1 = await new Promise((resolve, rejects) => {
-      db.query(
-        "SELECT * FROM cart_items WHERE cart_id = ?",
-        [cart_id],
-        (err, results) => {
-          if (err) {
-            rejects(err);
-          }
-          resolve(results);
-        }
-      );
-    });
+//     console.log(rows1);
 
-    console.log(rows1);
+//     // wada
+//     if (rows1.length === 0) {
+//       return res.status(404).json({ message: "No Cart Items Found" });
+//     }
 
-    // wada
-    if (rows1.length === 0) {
-      return res.status(404).json({ message: "No Cart Items Found" });
-    }
+//     for (let item of rows1) {
+//       console.log(item.cart_item_id);
+//       console.log(item.size_color_quantity_id);
+//       console.log(item.quantity);
 
-    for (let item of rows1) {
-      console.log(item.cart_item_id);
-      console.log(item.size_color_quantity_id);
-      console.log(item.quantity);
+//       const rows2 = await new Promise((resolve, rejects) => {
+//         db.query(
+//           "SELECT * FROM size_color_quantity WHERE size_color_quantity_id = ?",
+//           [item.size_color_quantity_id],
+//           (err, results) => {
+//             if (err) {
+//               rejects(err);
+//             }
+//             resolve(results);
+//           }
+//         );
+//       });
 
-      const rows2 = await new Promise((resolve, rejects) => {
-        db.query(
-          "SELECT quantity FROM size_color_quantity WHERE size_color_quantity_id = ?",
-          [item.size_color_quantity_id],
-          (err, results) => {
-            if (err) {
-              rejects(err);
-            }
-            resolve(results);
-          }
-        );
-      });
+//       let availableQuantity = rows2[0].quantity;
+//       let product_id =rows2[0].product_id
+    
 
-      let availableQuantity = rows2[0].quantity;
 
-      if (availableQuantity < item.quantity) {
-        return res
-          .status(400)
-          .json({ message: "Not enough quantity available" });
-      }
 
-      let newavailableQuantity = availableQuantity - item.quantity;
+//       if (availableQuantity < item.quantity) {
+//         return res
+//           .status(400)
+//           .json({ message: "Not enough quantity available" });
+//       }
 
-      const rows3 = await new Promise((resolve, rejects) => {
-        db.query(
-          "UPDATE size_color_quantity SET quantity = ? WHERE size_color_quantity_id = ?",
-          [newavailableQuantity, item.size_color_quantity_id],
-          (err, results) => {
-            if (err) {
-              rejects(err);
-            }
-            resolve(results);
-          }
-        );
-      });
+//      await new Promise(
+//         (resolve,rejects)=>{
+//           db.query(
+//             "UPDATE product SET sold = sold + ? WHERE p_id = ?",
+//             [item.quantity, product_id],
+//             (err,result) =>{
+//               console.log("Error in code");
+//               console.log(err);
+//               console.log("result in code");
+//               console.log(result);
+//               if(err){
+//                 rejects(err)
+//               }
+//               resolve(result)
+//             }
+//           )
+//         }
+//       )
 
-      // remove item from cart item table
 
-      const rows4 = await new Promise((resolve, rejects) => {
-        db.query(
-          "DELETE FROM cart_items WHERE cart_item_id = ?",
-          [item.cart_item_id],
-          (err, results) => {
-            if (err) {
-              rejects(err);
-            }
-            resolve(results);
-          }
-        );
-      });
+//       let newavailableQuantity = availableQuantity - item.quantity;
 
-      console.log({ rows4: rows4 });
+//       const rows3 = await new Promise((resolve, rejects) => {
+//         db.query(
+//           "UPDATE size_color_quantity SET quantity = ? WHERE size_color_quantity_id = ?",
+//           [newavailableQuantity, item.size_color_quantity_id],
+//           (err, results) => {
+//             if (err) {
+//               rejects(err);
+//             }
+//             resolve(results);
+//           }
+//         );
+//       });
 
-      console.log(order_rows);
+//       // remove item from cart item table
 
-      console.log(order_rows.insertId);
-      console.log(item.size_color_quantity_id);
-      console.log(item.quantity);
-      // add product to the orders_items table
+//       const rows4 = await new Promise((resolve, rejects) => {
+//         db.query(
+//           "DELETE FROM cart_items WHERE cart_item_id = ?",
+//           [item.cart_item_id],
+//           (err, results) => {
+//             if (err) {
+//               rejects(err);
+//             }
+//             resolve(results);
+//           }
+//         );
+//       });
 
-      const rows5 = await new Promise((resolve, rejects) => {
-        db.query(
-          "INSERT INTO order_items (order_id, size_color_quantity_id, quantity) VALUES (?,?,?)",
-          [order_rows.insertId, item.size_color_quantity_id, item.quantity],
-          (err, results) => {
-            if (err) {
-              rejects(err);
-            }
-            resolve(results);
-          }
-        );
-      });
+//       console.log({ rows4: rows4 });
 
-      console.log({ rows5: rows5 });
-      // update quantity in other customers' carts
+//       console.log(order_rows);
 
-      const rows6 = await new Promise((resolve, rejects) => {
-        db.query(
-          "UPDATE cart_items SET quantity = LEAST(quantity, ?) WHERE size_color_quantity_id = ?",
-          [newavailableQuantity, item.size_color_quantity_id],
-          (err, results) => {
-            if (err) {
-              rejects(err);
-            }
-            resolve(results);
-          }
-        );
-      });
-      console.log({ rows6: rows6 });
-    }
+//       console.log(order_rows.insertId);
+//       console.log(item.size_color_quantity_id);
+//       console.log(item.quantity);
+//       // add product to the orders_items table
 
-    // await Promise.all(promises);
+//       const rows5 = await new Promise((resolve, rejects) => {
+//         db.query(
+//           "INSERT INTO order_items (order_id, size_color_quantity_id, quantity) VALUES (?,?,?)",
+//           [order_rows.insertId, item.size_color_quantity_id, item.quantity],
+//           (err, results) => {
+//             if (err) {
+//               rejects(err);
+//             }
+//             resolve(results);
+//           }
+//         );
+//       });
 
-    res.status(201).json({ message: "Order created successfully" });
-  } catch (error) {
-    // res.status(404).json(error)
-    throw new Error(error);
-  }
-});
+//       console.log({ rows5: rows5 });
+//       // update quantity in other customers' carts
+
+//       const rows6 = await new Promise((resolve, rejects) => {
+//         db.query(
+//           "UPDATE cart_items SET quantity = LEAST(quantity, ?) WHERE size_color_quantity_id = ?",
+//           [newavailableQuantity, item.size_color_quantity_id],
+//           (err, results) => {
+//             if (err) {
+//               rejects(err);
+//             }
+//             resolve(results);
+//           }
+//         );
+//       });
+//       console.log({ rows6: rows6 });
+//     }
+
+//     // await Promise.all(promises);
+
+
+
+//     const bodyMessage = `Thank You for Purchased from Nisha Fashion Store. To see the order confirmation details visit this link. <a href='http://localhost:3001/order'>See Orser Details</>`;
+//     const data = {
+//       to: email,
+//       text: `Hi ${firstName} ${lastName}, Order is successful `,
+//       subject: "Order Confirmation",
+//       htm: bodyMessage,
+//     };
+//     sendEmail(data);
+
+
+//     res.status(201).json({ message: "Order created successfully" });
+//   } catch (error) {
+//     // res.status(404).json(error)
+//     throw new Error(error);
+//   }
+// });
 
 const createOrderCashier = asyncHandler(async (req, res) => {
   const { products } = req.body;
@@ -1957,10 +1994,12 @@ const getOrderProducts = asyncHandler(async (req, res) => {
   try {
     const orderItems = await new Promise((resolve, rejects) => {
       db.query(
-        `SELECT oi.*, p.p_title, scq.unit_price 
+        `SELECT oi.*, p.p_title, scq.* ,s.* , c.*, oi.quantity as ordered_quantity, (oi.quantity * scq.unit_price) as total_price
           FROM order_items oi
            LEFT JOIN size_color_quantity scq ON oi.size_color_quantity_id = scq.size_color_quantity_id
            LEFT JOIN product p ON scq.product_id = p.p_id
+           LEFT JOIN size s ON scq.size_id = s.size_id
+           LEFT JOIN color c ON scq.color_code = c.col_code
            WHERE oi.order_id = ?`,
         [orderId],
         (err, results) => {
@@ -2085,7 +2124,7 @@ module.exports = {
   getUserCart,
   removeFromCartItem,
   applyCoupon,
-  createOrder,
+  // createOrder,
   getOrders,
   updateOrderStatus,
   loginCashier,

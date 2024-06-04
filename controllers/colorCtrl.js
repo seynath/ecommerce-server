@@ -80,13 +80,28 @@ const createColor = asyncHandler(async (req, res) => {
 
 
 const updateColor = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  validateMongoDbId(id);
+
+  const { col_code, col_name } = req.body;
   try {
-    const updatedColor = await Color.findByIdAndUpdate(id, req.body, {
-      new: true,
-    });
-    res.json(updatedColor);
+ 
+    
+    const sql = "UPDATE color SET col_name = ? WHERE col_code = ?";
+    const updatedColor = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          sql,
+          [col_name, col_code],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    );
+    res.status(201).json(updatedColor);
   } catch (error) {
     throw new Error(error);
   }
@@ -104,11 +119,28 @@ const deleteColor = asyncHandler(async (req, res) => {
 });
 
 const getColor = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  validateMongoDbId(id);
+  let { id } = req.params;
+  let code = "#" + id
   try {
-    const getaColor = await Color.findById(id);
-    res.json(getaColor);
+
+    const sql = "SELECT * FROM color WHERE col_code = ?";
+    const getaColor = await new Promise(
+      (resolve, reject) => {
+
+        db.query(
+          sql,
+          [code],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+    );
+    res.status(200).json(getaColor);
   } catch (error) {
     throw new Error(error);
   }

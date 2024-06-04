@@ -196,26 +196,52 @@ const updateSupplier = asyncHandler(async (req, res) => {
 });
 
 const deleteSupplier = asyncHandler(async (req, res) => {
-  const { supplierId } = req.body;
+  const { supplierId } = req.params;
+  // console.log(supplierId);
 
   try {
-    const connection = await pool.getConnection();
 
-    // Begin transaction
-    await connection.beginTransaction();
-
-    // Delete supplier_products associations
     const deleteAssociationsQuery =
       "DELETE FROM supplier_products WHERE supplier_id = ?";
-    await connection.execute(deleteAssociationsQuery, [supplierId]);
+
+      const deletedValue = await new Promise(
+        (resolve, reject) => {
+          db.query(
+            deleteAssociationsQuery,
+            [supplierId],
+            (error, results) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(results);
+              }
+            }
+          );
+        }
+          )
+        
+      
 
     // Delete supplier
     const deleteSupplierQuery = "DELETE FROM supplier WHERE supplier_id = ?";
-    await connection.execute(deleteSupplierQuery, [supplierId]);
 
-    // Commit transaction
-    await connection.commit();
-    connection.release();
+    await new Promise(
+      (resolve, reject) => {
+        db.query(
+          deleteSupplierQuery,
+          [supplierId],
+          (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          }
+        );
+      }
+
+    )
+
     return res.status(200).json({ message: "Supplier deleted" });
   } catch (error) {
     throw new Error(error);
@@ -565,6 +591,7 @@ module.exports = {
   createSupplier,
   getAllSuppliers,
   getASupplier,
+  deleteSupplier,
   deleteProductFromSupplierByID,
   updateSupplierByProduct,
   getProductsFromSupplierId,

@@ -16,7 +16,7 @@ const router = express.Router();
 
 router.post("/", authMiddleware, isAdmin, createSupplier);
 // router.put("/:id", authMiddleware, isAdmin, updateSize);
-// router.delete("/:id", authMiddleware, isAdmin, deleteSize);
+router.delete("/:supplierId", authMiddleware, isAdmin, deleteSupplier);
 // router.get("/:id", getSize);
 router.get("/", getAllSuppliers);
 router.get("/:supplierId", getSupplier);

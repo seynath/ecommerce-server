@@ -155,57 +155,61 @@ const createCategory = async (req, res) => {
 
 
 const updateCategory = async (req, res) => {
-  const { id } = req.params;
-  // Validate ID if needed
-  // validateMongoDbId(id);
+ 
 
   // Extract data from request body
-  const { cat_name, cat_description } = req.body;
+  const { cat_name, id } = req.body;
 
   try {
-    // Connect to MySQL database
-    const connection = await pool.getConnection();
-    
 
-    // Check if the category name already exists (excluding the current category being updated)
-    const checkCategoryQuery = `
-      SELECT *
-      FROM category
-      WHERE cat_name = ? AND cat_id != ?
-    `;
-    const [existingCategory] = await connection.execute(checkCategoryQuery, [cat_name, id]);
-
-    // If the category name already exists (excluding the current category being updated), return an error
-    if (existingCategory.length > 0) {
-      return res.status(400).json({ message: "Category name already exists" });
-    }
 
     // Update category in the database
-    const updateCategoryQuery = "UPDATE category SET cat_name = ?, cat_description = ? WHERE cat_id = ?";
-    const [result] = await connection.execute(updateCategoryQuery, [cat_name, cat_description, id]);
+    const updateCategoryQuery = "UPDATE category SET cat_name = ? WHERE cat_id = ?";
 
+
+    const result = await new Promise(
+      (resolve, reject) => {
+        db.query(updateCategoryQuery, [cat_name, id], (error, results) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(results);
+          }
+        });
+      }
+    );
+    
     // Check if the category was updated successfully
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Category not found" });
     }
 
-    // Fetch the updated category from the database
-    const getCategoryQuery = "SELECT * FROM category WHERE cat_id = ?";
-    const [updatedCategory] = await connection.execute(getCategoryQuery, [id]);
 
     // Send the updated category as response
-    res.status(200).json(updatedCategory[0]);
+    res.status(201).json("Category Updated Successful");
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(400).json({ message: "Internal Server Error" });
   }
 };
 
 const deleteCategory = asyncHandler(async (req, res) => {
   const { id } = req.params;
+
   try {
-    const deletedCategory = await PCategory.findByIdAndDelete(id);
-    res.json(deletedCategory);
+
+    sql = "DELETE FROM category WHERE cat_id = ?"
+    const deletedcategory = await new Promise(
+      (resolve, reject) => {
+        db.query(sql, [id], (error, results) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(results);
+          }
+        });
+      }
+    );
+    res.status(200).json({ message: "Category deleted successfully" });
   } catch (error) {
     throw new Error(error);
   }

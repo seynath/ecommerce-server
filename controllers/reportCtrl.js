@@ -125,7 +125,7 @@ const salesReport = asyncHandler(async (req, res) => {
         JOIN size sz ON scq.size_id = sz.size_id
         JOIN color cl ON scq.color_code = cl.col_code
         JOIN product p ON scq.product_id = p.p_id
-        WHERE o.date_time BETWEEN ? AND ? AND o.payment_method = 'Cash'
+        WHERE (o.date_time BETWEEN ? AND ? AND o.payment_method = 'COD') OR o.payment_method = 'Card'
         GROUP BY o.order_id, o.date_time
         `,
         [fromDate, toDate, fromDate, toDate],
@@ -138,16 +138,17 @@ const salesReport = asyncHandler(async (req, res) => {
         }
       );
     });
-
+    
     res.status(200).json(sales);
   } catch (err) {
     console.error(err);
     res
-      .status(500)
-      .json({ error: "An error occurred while generating the report" });
+    .status(500)
+    .json({ error: "An error occurred while generating the report" });
   }
 });
 
+// WHERE o.date_time BETWEEN ? AND ? AND o.payment_method = 'COD' OR o.payment_method = 'Card'
 
 const inventoryReport = asyncHandler( async (req, res) => {
   try {
