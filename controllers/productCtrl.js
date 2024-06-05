@@ -38,6 +38,8 @@ const createProduct = asyncHandler(async (req, res) => {
         sql,
         [title, slug, description, brand, category, lowestPrice],
         (error, results) => {
+          console.log("result");
+          console.log(error);
           if (error) {
             reject(error);
           } else {
@@ -62,7 +64,7 @@ const createProduct = asyncHandler(async (req, res) => {
 
         console.log(barcodeValue);
 
-        const attributesSql = `INSERT INTO size_color_quantity (product_id, size_id, color_code, quantity, unit_price,buying_price, barcode) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+        const attributesSql = `INSERT INTO size_color_quantity (product_id, size_id, color_code, quantity, unit_price ,buying_price, barcode) VALUES (?, ?, ?, ?, ?, ?, ?)`;
 
         const resultsAttributes = await new Promise((resolve, reject) => {
           db.query(
@@ -107,6 +109,8 @@ const createProduct = asyncHandler(async (req, res) => {
           imageSql,
           [newPath.url, productId, newPath.asset_id, newPath.public_id],
           (error, results) => {
+            console.log("addedIMage");
+            console.log(error);
             if (error) {
               reject(error);
             } else {
