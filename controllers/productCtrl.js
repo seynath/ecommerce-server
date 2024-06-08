@@ -123,7 +123,7 @@ const createProduct = asyncHandler(async (req, res) => {
 
     res
       .status(200)
-      .json({ message: "Product created successfully", productId, urls });
+      .json({ status: 200, message: "Product created successfully", productId, urls });
   } catch (err) {
     res.status(500).json({ message: "Failed to create product" });
   }
@@ -1130,7 +1130,7 @@ const rating = async (req, res) => {
     const updatedProduct = productRows[0];
 
 
-    res.status(201).json(updatedProduct);
+    res.status(200).json(updatedProduct);
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Failed to rate product" });
@@ -1232,9 +1232,45 @@ const getSales = asyncHandler(async (req, res) => {
   try {
     const rows = await new Promise((resolve, reject) => {
       db.query(
+        // `
+        //   SELECT sales.*, sales_items.* ,branches.*
+        //   FROM sales 
+        //   LEFT JOIN sales_items ON sales.sales_id = sales_items.sales_id
+        //   LEFT JOIN branches ON sales.branch_id = branches.branch_id
+        //   `,
         `
-          SELECT sales.*, sales_items.* FROM sales LEFT JOIN sales_items ON sales.sales_id = sales_items.sales_id
-          `,
+        SELECT
+        s.sales_id,
+        s.date_time,
+        SUM(si.quantity * scq.unit_price) as total,
+        b.branch_name,
+        b.branch_id,
+        s.user_id as cashier_id,
+        JSON_OBJECTAGG(
+          CONCAT(scq.size_color_quantity_id),
+          JSON_OBJECT(
+            'product_id', p.p_id,
+            'size_name', sz.size_name,
+            'color_name', cl.col_name,
+            'quantity', si.quantity,
+            'unit_price', scq.unit_price,
+            'product_title', p.p_title,
+            'product_slug', p.p_slug,
+            'product_description', p.p_description,
+            'brand', p.brand,
+            'image', i.image_link
+          )
+        ) as items,
+        'offline' as order_source
+      FROM sales s
+      JOIN sales_items si ON s.sales_id = si.sales_id
+      JOIN size_color_quantity scq ON si.size_color_quantity_id = scq.size_color_quantity_id
+      JOIN size sz ON scq.size_id = sz.size_id
+      JOIN color cl ON scq.color_code = cl.col_code
+      JOIN product p ON scq.product_id = p.p_id
+      JOIN branches b ON s.branch_id = b.branch_id
+      JOIN image i ON p.p_id = i.product_id
+      GROUP BY s.sales_id, s.date_time`,
         (error, results) => {
           if (error) {
             reject(error);
