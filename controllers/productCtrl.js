@@ -381,8 +381,8 @@ const updateProduct = asyncHandler(async (req, res) => {
     }
 
     res
-      .status(201)
-      .json({ message: "Product updated successfully", productId, urls });
+      .status(200)
+      .json({status:200, message: "Product updated successfully", productId, urls });
   } catch (error) {
     await connection.rollback();
     throw error;
@@ -655,6 +655,7 @@ const getProduct = asyncHandler(async (req, res) => {
           p.price,
           p.total_rating,
           p.category_id,
+          c.col_name,
           scq.*,
           i.image_link,
           s.size_name
@@ -665,6 +666,8 @@ const getProduct = asyncHandler(async (req, res) => {
           image i ON p.p_id = i.product_id
           LEFT JOIN
           size s ON scq.size_id = s.size_id
+          LEFT JOIN
+          color c ON scq.color_code = c.col_code
       
           WHERE p.p_id = ?
           `,

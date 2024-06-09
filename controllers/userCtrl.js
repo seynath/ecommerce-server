@@ -1911,6 +1911,8 @@ async function fetchOrderDetails(salesId) {
   sales.total_price = sales.items.reduce((total, item) => {
     return total + item.full_total_price;
   }, 0);
+
+  
   // console.log("anthima");
   // console.log(sales);
 
