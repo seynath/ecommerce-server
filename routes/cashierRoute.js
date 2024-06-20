@@ -5,7 +5,8 @@ const {
   createOrderCashier,
   printBillCashier,
   getCashierSalesByCashierId,
-  getBranches
+  getBranches,
+  getProductsBySalesId
   
   
 } = require("../controllers/cashierCtrl");
@@ -19,6 +20,7 @@ router.get("/print/bill/:salesOrderId", printBillCashier)
 router.get("/branch/list",getBranches)
 
 router.get("/cashier/sales",authMiddleware, getCashierSalesByCashierId)
+router.get("/sales/products/:salesId",authMiddleware, getProductsBySalesId)
 
 
 

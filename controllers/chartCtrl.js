@@ -115,8 +115,161 @@ const getOrderChartData = asyncHandler(async (req, res) => {
       .json({ error: "An error occurred while generating the report" });
   }
 });
+// const getOrderChartData2 = asyncHandler(async (req, res) => {
+
+//   try {
+
+//     // Query for sales within the given date range
+  
+//     const sales = await new Promise(
+//       (resolve, reject) => {
+//         db.query(
+//           `
+       
+// SELECT * FROM orders ORDER BY date_time ASC;
+
+
+//           `,
+//           (err, result) => {
+//             if (err) {
+//               reject(err);
+//             } else {
+//               resolve(result);
+//             }
+//           }
+//         );
+//       }
+//     );
+//     res.status(200).json(sales);
+//   } catch (err) {
+//     console.error(err);
+//     res
+//       .status(500)
+//       .json({ error: "An error occurred while generating the report" });
+//   }
+// });
+const getOrderChartData2 = asyncHandler(async (req, res) => {
+
+  try {
+
+    // Query for sales within the given date range
+  
+    const sales = await new Promise(
+      (resolve, reject) => {
+        db.query(
+          `
+       
+SELECT DATE_FORMAT(date_time, '%Y-%m-%d %H:%i') AS order_date, COUNT(order_id) AS daily_orders
+FROM orders
+GROUP BY order_date;
+
+          `,
+          (err, result) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(result);
+            }
+          }
+        );
+      }
+    );
+    res.status(200).json(sales);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: "An error occurred while generating the report" });
+  }
+});
 
 
 
+const getDailySalesChart = asyncHandler(async (req,res)=>{
 
-module.exports = { getOrderChartData }
+
+  try{
+    const query = `
+    SELECT
+    DATE_FORMAT(date_time, '%Y-%m-%d') AS date,
+    COUNT(sales_id) AS daily_sales
+    FROM sales
+    GROUP BY date
+
+    `
+    const dailySales = await new Promise(
+      (resolve,reject)=>{
+        db.query(query,(err,result)=>{
+          console.log(err);
+          if(err){
+            reject(err)
+          }
+          resolve(result)
+        })
+      }
+    )
+    res.status(200).json(dailySales)
+  }catch(error){
+    res.status(400)
+    throw new Error("Error fetching data")
+  }
+})
+
+
+const getDailySalesGanemulla = asyncHandler(async(req,res)=>{
+  try{
+    const query = `
+    SELECT
+    DATE_FORMAT(date_time, '%Y-%m-%d') AS date,
+    COUNT(sales_id) AS daily_sales
+    FROM sales
+    WHERE branch_id = 2
+    GROUP BY date
+    `
+    const dailySales = await new Promise(
+      (resolve,reject)=>{
+        db.query(query,(err,result)=>{
+          if(err){
+            reject(err)
+          }
+          resolve(result)
+        })
+      }
+    )
+    res.status(200).json(dailySales)
+  }catch(error){
+    res.status(400)
+    throw new Error("Error fetching data")
+  }
+})
+
+const getDailySalesGampaha = asyncHandler(async(req,res)=>{
+  try{
+    const query = `
+    SELECT
+    DATE_FORMAT(date_time, '%Y-%m-%d') AS date,
+    COUNT(sales_id) AS daily_sales
+    FROM sales
+    WHERE branch_id = 1
+    GROUP BY date
+    `
+    const dailySales = await new Promise(
+      (resolve,reject)=>{
+        db.query(query,(err,result)=>{
+          if(err){
+            reject(err)
+          }
+          resolve(result)
+        })
+      }
+    )
+    res.status(200).json(dailySales)
+  }catch(error){
+    res.status(400)
+    throw new Error("Error fetching data")
+  }
+})
+
+module.exports = { getOrderChartData , getOrderChartData2, getDailySalesChart,
+  getDailySalesGanemulla,getDailySalesGampaha
+}

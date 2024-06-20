@@ -11,17 +11,13 @@ const saltRounds = 10;
 const bcrypt = require("bcrypt");
 const { resolve } = require("path");
 const { rejects } = require("assert");
+const { log } = require("console");
 
 const createUser = asyncHandler(async (req, res) => {
   try {
     const { firstname, lastname, email, mobile, password } = req.body;
     console.log(req.body);
     const role = "user";
-    const address = " ";
-
-    // Get a connection from the pool
-
-    // Check if user with the given email already exists
 
     
     const existingUsers = await new Promise((resolve, rejects) => {
@@ -33,7 +29,7 @@ const createUser = asyncHandler(async (req, res) => {
       });
     });
     
-    if (existingUsers.length == 0) {
+    if (existingUsers.length > 0) {
       return res.status(400).json({ message: "User Already Exists" });
     }
     
@@ -53,7 +49,6 @@ const createUser = asyncHandler(async (req, res) => {
         }
       );
     });
-    console.log(result);
     
     // Create an empty cart for the new user
     
@@ -62,7 +57,6 @@ const createUser = asyncHandler(async (req, res) => {
         "INSERT INTO cart (user_id) VALUES (?)",
         [result.insertId],
         (err, rows) => {
-          console.log(err);
           if (err) {
             rejects(err);
           }
@@ -70,69 +64,16 @@ const createUser = asyncHandler(async (req, res) => {
         }
       );
     });
-    console.log("hihi");
+    const id = result.insertId
 
     res.status(201).json({
       message: "User created successfully",
-      userId: result[0].insertId,
+      userId: result.insertId,
     });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
-// const createUser = asyncHandler(async (req, res) => {
-//   try {
-//     const { firstname, lastname, email, mobile, password } = req.body;
-//     console.log(req.body);
-//     const role = "user";
-//     const address = " ";
-
-//     // Get a connection from the pool
-
-//     // Check if user with the given email already exists
-
-//     // const results = await new Promise((resolve,rejects)=>{
-//     //   db.query("SELECT * FROM users WHERE email = ?",[email],(err,rows)=>{
-//     //     if(err){
-//     //       rejects(err)
-//     //     }
-//     //     resolve(rows)
-//     //   })
-//     // })
-//     // console.log(results)
-//     const connection = pool.getConnection()
-
-//     const [existingUsers] = await connection.execute(
-//       "SELECT * FROM users WHERE email = ?",
-//       [email]
-//     );
-
-//     if (existingUsers.length > 0) {
-//       connection.release();
-//       return res.status(400).json({ message: "User Already Exists" });
-//     }
-
-//     const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-//     // Create a new user
-//     const result = await db.query(
-//       "INSERT INTO users (firstname, lastname, email, mobile, password, role, address) VALUES (?, ?, ?, ?, ?, ?, ?)",
-//       [firstname, lastname, email, mobile, hashedPassword, role, address]
-//     );
-
-//     // Create an empty cart for the new user
-//     await connection.execute("INSERT INTO cart (user_id) VALUES (?)", [
-//       result[0].insertId,
-//     ]);
-
-//     res.status(201).json({
-//       message: "User created successfully",
-//       userId: result[0].insertId,
-//     });
-//   } catch (error) {
-//     res.status(400).json({ message: error.message });
-//   }
-// });
 
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -329,77 +270,6 @@ const loginAdmin = async (req, res) => {
     res.status(401).json({ message: error.message });
   }
 };
-// const loginAdmin = async (req, res) => {
-//   const { email, password } = req.body;
-
-//   try {
-//     // Get a MySQL connection from the pool
-//     const connection = await pool.getConnection();
-
-//     // Execute a SELECT query to find the user with the provided email
-//     const [rows] = await connection.execute(
-//       "SELECT * FROM users WHERE email = ?",
-//       [email]
-//     );
-//     const findAdmin = rows[0];
-//     console.log(findAdmin);
-
-//     if (!findAdmin) {
-//       connection.release();
-//       throw new Error("Email not found");
-//     }
-
-//     // Check if the user is an admin
-//     if (findAdmin.role !== "admin") {
-//       connection.release();
-//       throw new Error("Unauthorized access");
-//     }
-
-//     // Compare the provided password with the hashed password stored in the database
-//     const passwordMatched = await bcrypt.compare(password, findAdmin.password);
-
-//     if (!passwordMatched) {
-//       connection.release();
-//       throw new Error("Incorrect password");
-//     }
-
-//     // Generate a refresh token
-//     const refreshToken = await generateRefreshToken(findAdmin.id);
-//     console.log(refreshToken);
-
-//     // Update the user's refresh token in the database
-//     // const [rows1] = await connection.execute(
-//     //   "UPDATE users SET refreshToken = ? WHERE id = ?",
-//     //   [refreshToken, findAdmin.id]
-//     // );
-
-//     // if (rows1.length === 0) {
-//     //   connection.release();
-//     //   throw new Error("Server Error");
-//     // }
-
-//     connection.release();
-
-//     // Set the refresh token in a cookie
-//     res.cookie("refreshToken", refreshToken, {
-//       httpOnly: true,
-//       maxAge: 72 * 60 * 60 * 1000,
-//     });
-
-//     // Send the user's information along with an access token in the response
-//     res.status(200).json({
-//       _id: findAdmin.id,
-//       firstname: findAdmin.firstname,
-//       lastname: findAdmin.lastname,
-//       email: findAdmin.email,
-//       mobile: findAdmin.mobile,
-//       isAdmin: findAdmin.role,
-//       token: refreshToken,
-//     });
-//   } catch (error) {
-//     res.status(401).json({ message: error.message });
-//   }
-// };
 
 const loginCashier = async (req, res) => {
   const { email, password } = req.body;
@@ -901,55 +771,72 @@ const logout = async (req, res) => {
   }
 };
 
-// const logout = asyncHandler(async (req, res) => {
-//   const cookie = req.cookies;
-//   if (!cookie?.refreshToken) throw new Error("No Refresh Token in Cookies");
-//   const refreshToken = cookie.refreshToken;
-//   const user = await User.findOne({ refreshToken });
 
-//   if (!user) {
-//     res.clearCookie("refreshToken", {
-//       httpOnly: true,
-//       secure: true,
-//     });
-//     return res.sendStatus(204); // No Content
-//   }
 
-//   // Update the user's refreshToken to an empty string
-//   // methana thamai case eke thiyennne
-//   await User.findOneAndUpdate(
-//     { refreshToken },
-//     {
-//       $set: { refreshToken: "" },
-//     }
-//   );
 
-//   // Clear the refreshToken cookie
-//   res.clearCookie("refreshToken", {
-//     httpOnly: true,
-//     secure: true,
-//   });
+const forgotPasswordTokenAdmin = asyncHandler(async (req, res) => {
+  const { email } = req.body;
 
-//   return res.sendStatus(204); // No Content
-// });
+  try {
+    // Find the user by email
 
-/////////////
-///////////////
+    const rows = await new Promise((resolve, rejects) => {
+      db.query(
+        "SELECT * FROM users WHERE email = ?",
+        [email],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
 
-const updatePassword = asyncHandler(async (req, res) => {
-  const { _id } = req.user;
-  const { password } = req.body;
-  validateMongoDbId(_id);
-  const user = await User.findById(_id);
-  if (password) {
-    user.password = password;
-    const updatedPassword = await user.save();
-    res.json(updatedPassword);
-  } else {
-    res.json(user);
+    const user = rows[0];
+
+    if (!user) {
+      throw new Error("User not found with this email");
+    }
+
+    // Generate a password reset token
+    const resetToken = crypto
+      .createHash("sha256")
+      .update(Math.random().toString(36))
+      .digest("hex");
+
+    // Update the user's password reset token in the database
+
+    await new Promise((resolve, rejects) => {
+      db.query(
+        "UPDATE users SET passwordResetToken = ?, passwordResetExpires = DATE_ADD(NOW(), INTERVAL 10 MINUTE) WHERE id = ?",
+        [resetToken, user.id],
+        (err, results) => {
+          if (err) {
+            rejects(err);
+          }
+          resolve(results);
+        }
+      );
+    });
+
+    // Send email with reset link
+    const resetURL = `Hi, Please follow this link to reset Your Password. This link is valid till 10 minutes from now. <a href='http://localhost:3000/reset-password/${resetToken}'>Click Here</>`;
+    const data = {
+      to: email,
+      text: "Hey User",
+      subject: "Forgot Password Link",
+      htm: resetURL,
+    };
+    sendEmail(data);
+
+    res
+      .status(200)
+      .json({ message: "Password reset token sent to your email" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
-
 const forgotPasswordToken = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
@@ -2116,8 +2003,8 @@ module.exports = {
   unblockUser,
   handleRefreshToken,
   logout,
-  updatePassword,
   forgotPasswordToken,
+  forgotPasswordTokenAdmin,
   resetPassword,
   loginAdmin,
   getWishlist,

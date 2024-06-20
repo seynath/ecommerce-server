@@ -239,7 +239,9 @@ const createOrder = asyncHandler(async (req, res) => {
     // await Promise.all(promises);
 
     console.log("begin mail");
-    const bodyMessage = `Thank You for Purchased from Nisha Fashion Store. To see the order confirmation details visit this link. <a href='http://localhost:3001/order'>See Orser Details</>`;
+
+
+    const bodyMessage = `Thank You for Purchased from Nisha Fashion Store. To see the order confirmation details visit this link. <a href='http://localhost:3001/order'>See Orser Details</a>`;
     const data = {
       to: email,
       text: `Hi ${firstName} ${lastName}, Order is successful `,
@@ -247,6 +249,8 @@ const createOrder = asyncHandler(async (req, res) => {
       htm: bodyMessage,
     };
     sendEmail(data);
+
+
 
     console.log("end mail");
 

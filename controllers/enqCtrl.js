@@ -106,10 +106,9 @@ const deleteEnquiry = asyncHandler(async (req, res) => {
 
 const getallEnquiry = asyncHandler(async (req, res) => {
   try {
-    const getAllEnqSQL = `SELECT enquiry.* , orders.* , order_items.*,enquiry.message as enquiry_message
+    const getAllEnqSQL = `SELECT enquiry.* , orders.*,enquiry.message as enquiry_message
     FROM enquiry
     LEFT JOIN orders ON enquiry.order_id = orders.order_id
-    LEFT JOIN order_items ON orders.order_id = order_items.order_id
     
     
     `;

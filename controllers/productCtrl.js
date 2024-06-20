@@ -129,101 +129,6 @@ const createProduct = asyncHandler(async (req, res) => {
   }
 });
 
-// const createProduct = asyncHandler(async (req, res) => {
-//   try {
-//     const { title, description, brand, category, attributes } = req.body;
-
-//     console.log(title, description, brand, category);
-
-//     console.log(attributes);
-
-//     console.log("before attributes");
-
-//     const parsedAttributes = JSON.parse(attributes);
-
-//     // let lowestPrice = Number.MAX_SAFE_INTEGER;
-//     // if (parsedAttributes && parsedAttributes.length > 0) {
-//     //   lowestPrice = Math.min(...parsedAttributes.map(attr => attr.price));
-//     // }
-
-//     let lowestPrice = Infinity;
-//     if (parsedAttributes && parsedAttributes.length > 0) {
-//       lowestPrice = Math.min(
-//         ...parsedAttributes.map((attr) => parseFloat(attr.price))
-//       );
-//     }
-
-//     const slug = title ? slugify(title) : "";
-
-//     // Insert product into the database
-//     const connection = await pool.getConnection();
-
-//     const sql = `INSERT INTO product (p_title, p_slug, p_description, brand, category_id, price) VALUES (?, ?, ?, ?, ?, ?)`;
-//     const [result] = await connection.execute(sql, [
-//       title,
-//       slug,
-//       description,
-//       brand,
-//       category,
-//       lowestPrice,
-//     ]);
-//     const productId = result.insertId;
-//     console.log(productId);
-
-//     if (parsedAttributes && parsedAttributes.length > 0) {
-//       parsedAttributes.forEach(async (attribute, index) => {
-//         console.log(`Attribute ${index + 1}:`);
-//         console.log(`Size: ${attribute.size}`);
-//         console.log(`Color: ${attribute.color}`);
-//         console.log(`Quantity: ${attribute.quantity}`);
-//         console.log(`Price: ${attribute.price}`);
-//         console.log(`Buying Price: ${attribute.buyingPrice}`);
-
-//         barcodeValue = `${productId}${index}${attribute.size}`;
-
-//         console.log(barcodeValue);
-
-//         const attributesSql = `INSERT INTO size_color_quantity (product_id, size_id, color_code, quantity, unit_price,buying_price, barcode) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-//         const [resultsAttributes] = await connection.execute(attributesSql, [
-//           productId,
-//           attribute.size,
-//           attribute.color,
-//           attribute.quantity,
-//           attribute.price,
-//           attribute.buyingPrice,
-//           barcodeValue,
-//         ]);
-
-//         console.log(resultsAttributes);
-//       });
-//     }
-
-//     const uploader = (path) => cloudinaryUploadImg(path, "images");
-//     const urls = [];
-//     const files = req.files;
-//     // console.log(files);
-//     for (let i = 0; i < files.length; i++) {
-//       const { path } = files[i];
-//       const newPath = await uploader(path);
-//       urls.push(newPath);
-
-//       const imageSql =
-//         "INSERT INTO image ( image_link, product_id,  asset_id, public_id) VALUES (?, ?, ?, ?)";
-//       const [addedImage] = await connection.execute(imageSql, [
-//         newPath.url,
-//         productId,
-//         newPath.asset_id,
-//         newPath.public_id,
-//       ]);
-//     }
-
-//     connection.release();
-
-//     res.json({ message: "Product created successfully", productId, urls });
-//   } catch (err) {
-//     res.status(500).json({ message: "Failed to create product" });
-//   }
-// });
 
 const updateProduct = asyncHandler(async (req, res) => {
   const { productId } = req.params;
@@ -344,6 +249,10 @@ const updateProduct = asyncHandler(async (req, res) => {
 
     // Update the image records for the product
     const deleteImageSql = `DELETE FROM image WHERE product_id = ?`;
+    console.log(req.files);
+
+
+    if (req.files && req.files.length > 0) {
     const deletedImage = await new Promise((resolve, reject) => {
       db.query(deleteImageSql, [productId], (error, results) => {
         if (error) {
@@ -353,6 +262,9 @@ const updateProduct = asyncHandler(async (req, res) => {
         }
       });
     });
+
+    
+  }
 
     const uploader = (path) => cloudinaryUploadImg(path, "images");
     const urls = [];
@@ -391,122 +303,6 @@ const updateProduct = asyncHandler(async (req, res) => {
   }
 });
 
-//ok
-
-// const updateProduct = asyncHandler(async (req, res) => {
-//   const { productId } = req.params;
-//   const { title, description, brand, category, attributes } = req.body;
-
-//   console.log(productId);
-
-//   // Parse the attributes string into an array of objects
-//   const parsedAttributes = JSON.parse(attributes);
-
-//   // Get the lowest price from the attributes
-//   let lowestPrice = Infinity;
-//   if (parsedAttributes && parsedAttributes.length > 0) {
-//     lowestPrice = Math.min(
-//       ...parsedAttributes.map((attr) => parseFloat(attr.price))
-//     );
-//   }
-//   const slug = title ? slugify(title) : "";
-
-//   // Update the product record in the database
-//   try {
-//     const connection = await pool.getConnection();
-//     await connection.beginTransaction();
-
-//     const sql = `
-//     UPDATE product
-//     SET p_title = ?,
-//     p_slug = ?,
-//     p_description = ?,
-//     brand = ?,
-//     category_id = ?,
-//     price = ?
-//     WHERE p_id = ?
-//     `;
-
-//     const [result] = await connection.execute(sql, [
-//       title,
-//       slug,
-//       description,
-//       brand,
-//       category,
-//       lowestPrice,
-//       productId,
-//     ]);
-
-//     // Update the size_color_quantity records for the product
-//     if (parsedAttributes && parsedAttributes.length > 0) {
-//       const insertPromises = parsedAttributes.map(async (attribute, index) => {
-//         const { size, color, quantity, price, buyingPrice } = attribute;
-
-//         const barcodeValue = `${productId}${index}${size}`;
-
-//         // Check for existing entry
-//         const checkSql = `SELECT * FROM size_color_quantity WHERE product_id = ? AND size_id = ? AND color_code = ?`;
-//         const [rows] = await connection.execute(checkSql, [productId, size, color]);
-
-//         if (rows.length > 0) {
-//           // Update the existing entry
-//           const updateSql = `UPDATE size_color_quantity SET quantity = ?, unit_price = ?, buying_price = ? WHERE product_id = ? AND size_id = ? AND color_code = ?`;
-//           await connection.execute(updateSql, [quantity, price, buyingPrice, productId, size, color]);
-//         } else {
-//           // Insert a new entry
-//           const insertSql = `
-//             INSERT INTO size_color_quantity
-//             (product_id, size_id, color_code, quantity, unit_price, buying_price, barcode)
-//             VALUES (?, ?, ?, ?, ?, ?, ?)
-//           `;
-//           await connection.execute(insertSql, [
-//             productId,
-//             size,
-//             color,
-//             quantity,
-//             price,
-//             buyingPrice,
-//             barcodeValue,
-//           ]);
-//         }
-//       });
-
-//     }
-
-//     // Update the image records for the product
-//     const deleteImageSql = `DELETE FROM image WHERE product_id = ?`;
-//     await connection.execute(deleteImageSql, [productId]);
-
-//     const uploader = (path) => cloudinaryUploadImg(path, "images");
-//     const urls = [];
-//     const files = req.files;
-//     for (let i = 0; i < files.length; i++) {
-//       const { path } = files[i];
-//       const newPath = await uploader(path);
-//       urls.push(newPath);
-
-//       const imageSql =
-//         "INSERT INTO image ( image_link, product_id,  asset_id, public_id) VALUES (?, ?, ?, ?)";
-//       await connection.execute(imageSql, [
-//         newPath.url,
-//         productId,
-//         newPath.asset_id,
-//         newPath.public_id,
-//       ]);
-//     }
-
-//     await connection.commit();
-
-//     res
-//       .status(201)
-//       .json({ message: "Product updated successfully", productId, urls });
-//   } catch (error) {
-//     await connection.rollback();
-//     throw error;
-//   } finally {
-//     connection.release();
-//   }
-// });
 
 const deleteProduct = asyncHandler(async (req, res) => {
   const { productId } = req.params;
@@ -715,6 +511,7 @@ const getProduct = asyncHandler(async (req, res) => {
           quantity: row.quantity,
           unit_price: row.unit_price,
           buyingPrice: row.buying_price,
+          barcode: row.barcode
         });
       }
     });

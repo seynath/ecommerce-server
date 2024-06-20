@@ -10,7 +10,6 @@ const {
   unblockUser,
   handleRefreshToken,
   logout,
-  updatePassword,
   forgotPasswordToken,
   resetPassword,
   loginAdmin,
@@ -29,7 +28,8 @@ const {
   getOrderProducts,
   getOrdersById,
   updateRole,
-  getCashierSalesByCashierId
+  getCashierSalesByCashierId,
+  forgotPasswordTokenAdmin
   
   
 } = require("../controllers/userCtrl");
@@ -39,8 +39,9 @@ const {authMiddleware,isAdmin, isCashier} = require("../middlewares/authMiddlewa
 
 router.post("/register", createUser);
 router.post("/forgot-password-token", forgotPasswordToken);
+router.post("/admin/forgot-password-token", forgotPasswordTokenAdmin);
 router.put("/reset-password/:token", resetPassword);
-router.put("/password",authMiddleware, updatePassword);
+// router.put("/password",authMiddleware, updatePassword);
 router.put("/order/update-order/:id",authMiddleware,isAdmin, updateOrderStatus);
 router.post("/login", loginUser);
 
